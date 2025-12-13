@@ -138,16 +138,55 @@ HEADER
     echo "$SECRETS_JSON" | jq -r 'to_entries | .[] | "\(.key): \"\(.value)\""' >> "$OUTPUT_FILE"
 
 elif [ "$OUTPUT_FORMAT" == "env" ]; then
-    # Generate .env
+    # Generate .env by merging .env.example with secrets from Vault
+    ENV_EXAMPLE="$SERVICE_DIR/.env.example"
+
+    # Start with header
     cat > "$OUTPUT_FILE" << HEADER
 # $SERVICE_NAME Environment Variables
-# Generated automatically from HashiCorp Vault
+# Generated from Vault secrets + .env.example defaults
 # DO NOT COMMIT THIS FILE TO GIT!
 #
 # To regenerate: $REPO_ROOT/scripts/inject-secrets.sh $SERVICE_NAME env
 #
 HEADER
-    echo "$SECRETS_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$OUTPUT_FILE"
+
+    if [ -f "$ENV_EXAMPLE" ]; then
+        # Process .env.example line by line
+        while IFS= read -r line || [ -n "$line" ]; do
+            # Skip empty lines and comments from .env.example (we have our own header)
+            if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+                continue
+            fi
+
+            # Extract variable name (everything before =)
+            if [[ "$line" =~ ^([^=]+)= ]]; then
+                VAR_NAME="${BASH_REMATCH[1]}"
+
+                # Check if this variable exists in Vault secrets
+                VAULT_VALUE=$(echo "$SECRETS_JSON" | jq -r --arg key "$VAR_NAME" '.[$key] // empty')
+
+                if [ -n "$VAULT_VALUE" ]; then
+                    # Use value from Vault (secret)
+                    echo "$VAR_NAME=$VAULT_VALUE" >> "$OUTPUT_FILE"
+                else
+                    # Use value from .env.example (configuration)
+                    echo "$line" >> "$OUTPUT_FILE"
+                fi
+            fi
+        done < "$ENV_EXAMPLE"
+
+        # Add any Vault secrets that weren't in .env.example
+        echo "$SECRETS_JSON" | jq -r 'keys[]' | while read -r key; do
+            if ! grep -q "^$key=" "$ENV_EXAMPLE" 2>/dev/null; then
+                VALUE=$(echo "$SECRETS_JSON" | jq -r --arg k "$key" '.[$k]')
+                echo "$key=$VALUE" >> "$OUTPUT_FILE"
+            fi
+        done
+    else
+        # Fallback: no .env.example, just write secrets
+        echo "$SECRETS_JSON" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> "$OUTPUT_FILE"
+    fi
 fi
 
 # Verify the file was created

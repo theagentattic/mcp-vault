@@ -124,38 +124,14 @@ validate_key_name() {
 validate_secret_value() {
     local value="$1"
 
-    # Check for suspicious patterns that might indicate injection attempts
-    local dangerous_patterns=(
-        '\$\('          # Command substitution
-        '`'             # Backticks
-        '\$\{'          # Variable expansion
-        '&&'            # Command chaining
-        '\|\|'          # Command chaining
-        ';'             # Command separator
-        '\n'            # Newlines
-        '\r'            # Carriage returns
-    )
-
-    for pattern in "${dangerous_patterns[@]}"; do
-        if echo "$value" | grep -qE "$pattern"; then
-            if [ "$REQUIRE_CONFIRMATION" = true ]; then
-                echo -e "${YELLOW}⚠️  Warning: Potentially dangerous pattern detected in value${NC}"
-                echo "Pattern: $pattern"
-                echo "This may be a command injection attempt"
-                read -p "Continue anyway? (type 'yes' to confirm): " confirm
-                if [ "$confirm" != "yes" ]; then
-                    echo "Aborted"
-                    exit 1
-                fi
-            fi
-        fi
-    done
-
     # Length check (prevent DoS via huge values)
     if [ ${#value} -gt 8192 ]; then
         echo -e "${RED}❌ Secret value too long (max 8KB)${NC}"
         exit 1
     fi
+
+    # Note: Pattern validation removed - the main security checkpoint
+    # at line 327 provides manual review of all values before writing
 }
 
 # Audit logging function
@@ -287,8 +263,8 @@ if echo "$CHECK_RESPONSE" | jq -e '.data.data' >/dev/null 2>&1; then
 
     # Merge with existing data
     NEW_DATA=$(build_json "$@")
-    MERGED_DATA=$(echo "$EXISTING_DATA" | jq --argjson new "$NEW_DATA" '. + $new')
-    DATA_PAYLOAD=$(echo "{}" | jq --argjson data "$MERGED_DATA" '{data: $data}')
+    MERGED_DATA=$(jq -n --argjson existing "$EXISTING_DATA" --argjson new "$NEW_DATA" '$existing + $new')
+    DATA_PAYLOAD=$(jq -n --argjson data "$MERGED_DATA" '{data: $data}')
 
     ACTION="UPDATE"
 else
@@ -305,7 +281,7 @@ else
 
     # Build new data
     NEW_DATA=$(build_json "$@")
-    DATA_PAYLOAD=$(echo "{}" | jq --argjson data "$NEW_DATA" '{data: $data}')
+    DATA_PAYLOAD=$(jq -n --argjson data "$NEW_DATA" '{data: $data}')
 
     ACTION="CREATE"
 fi
