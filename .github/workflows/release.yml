@@ -28,6 +28,62 @@ jobs:
           # Create release directory
           mkdir -p release
 
+          # Create standalone installer that downloads from this release
+          cat > release/install.sh << 'INSTALLER_EOF'
+#!/bin/bash
+# Claude-Vault Standalone Installer
+# Downloads and installs claude-vault from GitHub releases
+
+set -e
+
+GITHUB_REPO="weber8thomas/claude-vault"
+VERSION="${CLAUDE_VAULT_VERSION:-latest}"
+PREFIX="${PREFIX:-/usr/local/bin}"
+
+echo "Installing claude-vault ${VERSION} to ${PREFIX}..."
+
+# Check if we have write permission
+if [ ! -w "$PREFIX" ]; then
+    echo "Error: No write permission to $PREFIX"
+    echo "Please run with sudo or set PREFIX to a writable location:"
+    echo "  sudo bash install.sh"
+    echo "  PREFIX=\$HOME/.local/bin bash install.sh"
+    exit 1
+fi
+
+# Determine latest version if not specified
+if [ "$VERSION" = "latest" ]; then
+    echo "Fetching latest release version..."
+    VERSION=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+    echo "Latest version: ${VERSION}"
+fi
+
+# Download from GitHub release
+echo "Downloading claude-vault ${VERSION}..."
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
+
+curl -fsSL "https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/claude-vault-${VERSION}-linux-amd64.tar.gz" | tar -xz -C "$TEMP_DIR"
+
+# Install scripts
+echo "Installing scripts to ${PREFIX}..."
+cp -v "$TEMP_DIR/claude-vault/bin/"* "${PREFIX}/"
+
+# Make executable
+echo "Setting permissions..."
+chmod +x "${PREFIX}"/claude-vault*
+chmod +x "${PREFIX}"/vault-*
+chmod +x "${PREFIX}"/inject-secrets.sh
+
+echo ""
+echo "✅ Installation complete!"
+echo ""
+echo "claude-vault ${VERSION} is now available in your PATH."
+echo "Try: claude-vault --help"
+INSTALLER_EOF
+
+          chmod +x release/install.sh
+
           # Create tarball
           tar -czf release/claude-vault-${VERSION}-linux-amd64.tar.gz \
             --transform 's,^,claude-vault/,' \
@@ -39,7 +95,7 @@ jobs:
 
           # Create checksums
           cd release
-          sha256sum *.tar.gz *.zip > checksums.txt
+          sha256sum *.tar.gz *.zip install.sh > checksums.txt
           cat checksums.txt
 
       - name: Create Release
