@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Package binaries
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+
+          # Create release directory
+          mkdir -p release
+
+          # Create tarball
+          tar -czf release/claude-vault-${VERSION}-linux-amd64.tar.gz \
+            --transform 's,^,claude-vault/,' \
+            bin/ docs/ install.sh README.md LICENSE
+
+          # Create zip
+          zip -r release/claude-vault-${VERSION}-linux-amd64.zip \
+            bin/ docs/ install.sh README.md LICENSE
+
+          # Create checksums
+          cd release
+          sha256sum *.tar.gz *.zip > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release/*.tar.gz
+            release/*.zip
+            release/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

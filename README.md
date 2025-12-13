@@ -15,12 +15,24 @@ Session-based CLI for HashiCorp Vault with AI assistant integration.
 
 ### Installation
 
-**Quick install from GitHub (recommended):**
+**Option 1: Install from latest release (recommended)**
+```bash
+# Download and extract latest release
+VERSION="v1.0.0"  # Check latest at https://github.com/weber8thomas/claude-vault/releases
+curl -fsSL "https://github.com/weber8thomas/claude-vault/releases/download/${VERSION}/claude-vault-${VERSION}-linux-amd64.tar.gz" | tar -xz
+cd claude-vault
+sudo ./install.sh
+
+# Or user-local installation
+PREFIX="$HOME/.local/bin" ./install.sh
+```
+
+**Option 2: Quick install from main branch**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/weber8thomas/claude-vault/main/install.sh | sudo bash
 ```
 
-**Or clone and install manually:**
+**Option 3: Clone and install manually**
 ```bash
 git clone https://github.com/weber8thomas/claude-vault.git
 cd claude-vault
@@ -29,8 +41,7 @@ sudo ./install.sh
 
 **User-local installation (no sudo):**
 ```bash
-git clone https://github.com/weber8thomas/claude-vault.git
-cd claude-vault
+# For any option above, use PREFIX to install to ~/.local/bin
 PREFIX="$HOME/.local/bin" ./install.sh
 # Add to PATH: echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 ```
@@ -67,3 +78,19 @@ claude-vault inject authentik      # Inject to .env file
 ## MCP Server
 
 This repository also includes an MCP (Model Context Protocol) server for Vault integration with Claude Code. See [mcp_vault/](mcp_vault/) for details.
+
+## Releases
+
+Binary releases are automatically created when new version tags are pushed. Each release includes:
+
+- `claude-vault-vX.X.X-linux-amd64.tar.gz` - Tarball archive
+- `claude-vault-vX.X.X-linux-amd64.zip` - ZIP archive
+- `checksums.txt` - SHA256 checksums for verification
+
+**To create a new release:**
+```bash
+git tag -a v1.0.0 -m "Release version 1.0.0"
+git push origin v1.0.0
+```
+
+GitHub Actions will automatically build and publish the release with downloadable binaries.
