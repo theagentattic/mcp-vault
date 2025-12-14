@@ -10,6 +10,9 @@ Supported authenticators:
 - 🔑 **YubiKey** (cross-platform)
 - 📱 **Phone authenticators** (via Bluetooth/NFC)
 
+![Home Page](../docs/images/home-page.png)
+*Claude-Vault approval server home page showing registration status*
+
 ## One-Time Device Registration
 
 Before you can approve Claude-Vault operations, you must register your authenticator **once**.
@@ -36,8 +39,11 @@ Open your browser and navigate to:
 http://localhost:8091/register
 ```
 
+![Registration Page](../docs/images/registration-page.png)
+*The WebAuthn registration interface*
+
 **What you'll see:**
-1. A page titled "🔐 Register Authenticator"
+1. A page titled "🔐 Claude-Vault Approval"
 2. A button: "Register Authenticator"
 3. Click the button
 
@@ -96,13 +102,15 @@ After approval, call vault_set again with:
   vault_set(service="myapp", secrets={...}, approval_token="abc123xyz")
 
 # 3. You open the URL in browser
-[Browser shows rich preview of what will be written]
+![Approval Page](../docs/images/approval-page.png)
+*Review the secrets that will be written to Vault*
 
 # 4. You click "Approve with WebAuthn"
 [TouchID/Windows Hello/YubiKey prompt appears]
 
 # 5. You authenticate
-[Success message: ✅ Operation approved!]
+![Success Message](../docs/images/approval-success.png)
+*Operation approved successfully with return link to home*
 
 # 6. Call vault_set again with token
 vault_set(service="myapp", secrets={"DB_PASS": "secret123"}, approval_token="abc123xyz")
