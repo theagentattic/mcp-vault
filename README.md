@@ -20,6 +20,37 @@ Session-based CLI for HashiCorp Vault with AI assistant integration.
 - **Input validation** - Prevents path traversal and command injection vulnerabilities
 - **AI assistant friendly** - Designed for seamless Claude Code integration
 
+## WebAuthn Approval UI
+
+The approval server provides a clean web interface for reviewing and approving Vault operations with biometric authentication. Here's the complete workflow:
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/images/home-page.png" alt="Home Page" />
+      <p align="center"><strong>1. Home Dashboard</strong></p>
+      <p><em>Monitor server status, view pending approvals, and manage registered WebAuthn devices.</em></p>
+    </td>
+    <td width="50%">
+      <img src="docs/images/approval-page.png" alt="Approval Page" />
+      <p align="center"><strong>2. Review Operation</strong></p>
+      <p><em>Examine the service name, operation type, and preview secret values before approving.</em></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/images/approval-page-touchid.png" alt="TouchID Prompt" />
+      <p align="center"><strong>3. Biometric Authentication</strong></p>
+      <p><em>Confirm with TouchID, Windows Hello, or hardware security key for cryptographic verification.</em></p>
+    </td>
+    <td width="50%">
+      <img src="docs/images/approval-page-success.png" alt="Success Message" />
+      <p align="center"><strong>4. Approval Complete</strong></p>
+      <p><em>Success confirmation with audit trail. The operation is now processed and logged.</em></p>
+    </td>
+  </tr>
+</table>
+
 ## Quick Start
 
 ### Installation
