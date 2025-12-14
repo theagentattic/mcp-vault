@@ -57,6 +57,7 @@ class ApprovalServer:
         self.origin = origin  # Expected origin for WebAuthn
         self.app = FastAPI()
         self.pending_ops: Dict[str, PendingOperation] = {}
+        self.completed_ops: Dict[str, PendingOperation] = {}  # History
         self.credentials_db: Dict[str, dict] = {}  # user_id -> credential
         self.challenges: Dict[str, bytes] = {}  # session_id -> challenge
 
@@ -65,10 +66,12 @@ class ApprovalServer:
         self.storage_dir.mkdir(exist_ok=True)
         self.credentials_file = self.storage_dir / "webauthn-credentials.json"
         self.pending_ops_file = self.storage_dir / "pending-operations.json"
+        self.completed_ops_file = self.storage_dir / "completed-operations.json"
 
-        # Load existing credentials and pending operations
+        # Load existing credentials and operations
         self._load_credentials()
         self._load_pending_operations()
+        self._load_completed_operations()
 
         # Setup routes
         self._setup_routes()
@@ -120,6 +123,35 @@ class ApprovalServer:
             self.pending_ops_file.write_text(json.dumps(data, indent=2))
         except Exception as e:
             print(f"Warning: Could not save pending operations: {e}", file=sys.stderr)
+
+    def _load_completed_operations(self):
+        """Load completed operations from disk."""
+        if self.completed_ops_file.exists():
+            try:
+                data = json.loads(self.completed_ops_file.read_text())
+                # Convert dict to PendingOperation objects
+                for op_id, op_data in data.items():
+                    self.completed_ops[op_id] = PendingOperation(**op_data)
+                # Clean up old operations (older than 24 hours)
+                now = datetime.now().timestamp()
+                expired = [
+                    op_id for op_id, op in self.completed_ops.items() if now - op.created_at > 86400
+                ]
+                for op_id in expired:
+                    del self.completed_ops[op_id]
+                if expired:
+                    self._save_completed_operations()
+            except Exception as e:
+                print(f"Warning: Could not load completed operations: {e}", file=sys.stderr)
+
+    def _save_completed_operations(self):
+        """Save completed operations to disk."""
+        try:
+            # Convert PendingOperation objects to dicts
+            data = {op_id: asdict(op) for op_id, op in self.completed_ops.items()}
+            self.completed_ops_file.write_text(json.dumps(data, indent=2))
+        except Exception as e:
+            print(f"Warning: Could not save completed operations: {e}", file=sys.stderr)
 
     def _setup_routes(self):
         """Setup FastAPI routes."""
@@ -334,6 +366,7 @@ class ApprovalServer:
 
     {self._get_registered_devices_html()}
     {self._get_pending_operations_html()}
+    {self._get_history_html()}
 
     <script>
         async function resetCredentials() {{
@@ -659,6 +692,78 @@ class ApprovalServer:
                     <th>Status</th>
                     <th>Created</th>
                     <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {ops_rows}
+            </tbody>
+        </table>
+    </div>
+        """
+
+    def _get_history_html(self) -> str:
+        """Generate HTML for completed operations history."""
+        # Reload to get latest state
+        self._load_completed_operations()
+
+        if not self.completed_ops:
+            return """
+    <div class="card">
+        <h2>📜 Operation History</h2>
+        <div class="empty-state">No completed operations yet</div>
+    </div>
+            """
+
+        # Sort by completion time (most recent first)
+        sorted_ops = sorted(
+            self.completed_ops.items(),
+            key=lambda x: x[1].approved_at or x[1].created_at,
+            reverse=True,
+        )
+
+        # Limit to last 10 operations
+        ops_rows = ""
+        now = datetime.now().timestamp()
+        for op_id, op in sorted_ops[:10]:
+            # Calculate time ago from approved_at or created_at
+            ref_time = op.approved_at if op.approved_at else op.created_at
+            age_seconds = int(now - ref_time)
+            if age_seconds < 60:
+                age_str = f"{age_seconds}s ago"
+            elif age_seconds < 3600:
+                age_str = f"{age_seconds // 60}m ago"
+            else:
+                age_str = f"{age_seconds // 3600}h ago"
+
+            # Format timestamp
+            completed_time = datetime.fromtimestamp(ref_time).strftime("%Y-%m-%d %H:%M")
+
+            action_badge_class = "badge-info" if op.action == "CREATE" else "badge-secondary"
+
+            ops_rows += f"""
+            <tr>
+                <td><strong>{op.service}</strong></td>
+                <td><span class="badge {action_badge_class}">{op.action}</span></td>
+                <td>{len(op.secrets)} secret(s)</td>
+                <td><span class="badge badge-success">Completed</span></td>
+                <td class="time-ago">{completed_time}</td>
+                <td class="time-ago">{age_str}</td>
+            </tr>
+            """
+
+        return f"""
+    <div class="card">
+        <h2>📜 Operation History</h2>
+        <p style="color: #6c757d; margin-bottom: 15px;">Last 10 completed operations (kept for 24 hours)</p>
+        <table class="list-table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Action</th>
+                    <th>Secrets</th>
+                    <th>Status</th>
+                    <th>Completed</th>
+                    <th>Age</th>
                 </tr>
             </thead>
             <tbody>
@@ -1410,11 +1515,15 @@ class ApprovalServer:
         return op.approved
 
     def cleanup_operation(self, op_id: str):
-        """Remove operation after it's been executed."""
+        """Move operation to history after it's been executed."""
         if op_id in self.pending_ops:
+            # Move to completed operations history
+            self.completed_ops[op_id] = self.pending_ops[op_id]
             del self.pending_ops[op_id]
-            # Save to disk after cleanup
+
+            # Save both to disk
             self._save_pending_operations()
+            self._save_completed_operations()
 
     def start(self):
         """Start the approval server in a background thread."""

@@ -13,6 +13,10 @@ VAULT_TOKEN
 # Session files
 .vault-session
 
+# Approval server operations (contain secrets before approval)
+pending-operations.json
+completed-operations.json
+
 # Python (for mcp_vault)
 __pycache__/
 *.py[cod]
