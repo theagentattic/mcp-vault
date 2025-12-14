@@ -1,8 +1,8 @@
-# WebAuthn Setup Guide
+# Claude-Vault WebAuthn Setup Guide
 
 ## Overview
 
-The mcp-vault approval system uses **WebAuthn** (same technology as Authentik) to require biometric/hardware authentication before writing secrets to Vault.
+The Claude-Vault approval system uses **WebAuthn** (same technology as Authentik) to require biometric/hardware authentication before writing secrets to HashiCorp Vault.
 
 Supported authenticators:
 - 🍎 **TouchID** (macOS)
@@ -12,7 +12,7 @@ Supported authenticators:
 
 ## One-Time Device Registration
 
-Before you can approve Vault operations, you must register your authenticator **once**.
+Before you can approve Claude-Vault operations, you must register your authenticator **once**.
 
 ### Step 1: Start the Approval Server
 
@@ -65,7 +65,7 @@ After successful registration, you'll see:
 ```
 ✅ Authenticator registered successfully!
 
-You can now approve Vault operations!
+You can now approve Claude-Vault operations!
 ```
 
 Your credentials are stored in: `~/.claude-vault/webauthn-credentials.json`
@@ -108,7 +108,7 @@ After approval, call vault_set again with:
 vault_set(service="myapp", secrets={"DB_PASS": "secret123"}, approval_token="abc123xyz")
 
 # 7. Write succeeds
-✅ Success! Secrets written to Vault.
+✅ Success! Secrets written to Claude-Vault.
 ```
 
 ## Troubleshooting
