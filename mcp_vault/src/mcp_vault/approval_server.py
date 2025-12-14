@@ -58,9 +58,11 @@ class ApprovalServer:
         self.storage_dir = Path.home() / ".claude-vault"
         self.storage_dir.mkdir(exist_ok=True)
         self.credentials_file = self.storage_dir / "webauthn-credentials.json"
+        self.pending_ops_file = self.storage_dir / "pending-operations.json"
 
-        # Load existing credentials
+        # Load existing credentials and pending operations
         self._load_credentials()
+        self._load_pending_operations()
 
         # Setup routes
         self._setup_routes()
@@ -84,6 +86,34 @@ class ApprovalServer:
         except Exception as e:
             print(f"Warning: Could not save credentials: {e}")
 
+    def _load_pending_operations(self):
+        """Load pending operations from disk."""
+        if self.pending_ops_file.exists():
+            try:
+                data = json.loads(self.pending_ops_file.read_text())
+                # Convert dict to PendingOperation objects
+                for op_id, op_data in data.items():
+                    self.pending_ops[op_id] = PendingOperation(**op_data)
+                # Clean up expired operations (older than 5 minutes)
+                now = datetime.now().timestamp()
+                expired = [op_id for op_id, op in self.pending_ops.items()
+                          if now - op.created_at > 300]
+                for op_id in expired:
+                    del self.pending_ops[op_id]
+                if expired:
+                    self._save_pending_operations()
+            except Exception as e:
+                print(f"Warning: Could not load pending operations: {e}", file=sys.stderr)
+
+    def _save_pending_operations(self):
+        """Save pending operations to disk."""
+        try:
+            # Convert PendingOperation objects to dicts
+            data = {op_id: asdict(op) for op_id, op in self.pending_ops.items()}
+            self.pending_ops_file.write_text(json.dumps(data, indent=2))
+        except Exception as e:
+            print(f"Warning: Could not save pending operations: {e}", file=sys.stderr)
+
     def _setup_routes(self):
         """Setup FastAPI routes."""
 
@@ -95,7 +125,7 @@ class ApprovalServer:
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Vault Approval Server</title>
+    <title>Claude-Vault Approval Server</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -193,8 +223,8 @@ class ApprovalServer:
 </head>
 <body>
     <div class="header">
-        <h1>🔐 Vault Approval</h1>
-        <p>Secure Secret Management</p>
+        <h1>🔐 Claude-Vault Approval</h1>
+        <p>AI-Assisted Secret Management</p>
     </div>
 
     <div class="card">
@@ -215,7 +245,7 @@ class ApprovalServer:
             </div>
         </div>
 
-        {'<div class="info-box success-box"><strong>✓ Setup Complete</strong><br>Your authenticator is registered and ready to approve operations.</div>' if has_auth else '<div class="info-box warning-box"><strong>⚠ Setup Required</strong><br>Register your authenticator (TouchID, Windows Hello, or YubiKey) before you can approve Vault operations.</div>'}
+        {'<div class="info-box success-box"><strong>✓ Setup Complete</strong><br>Your authenticator is registered and ready to approve operations.</div>' if has_auth else '<div class="info-box warning-box"><strong>⚠ Setup Required</strong><br>Register your authenticator (TouchID, Windows Hello, or YubiKey) before you can approve Claude-Vault operations.</div>'}
 
         <h2 style="margin-top: 30px;">Actions</h2>
 
@@ -223,7 +253,7 @@ class ApprovalServer:
 
         <div class="info-box" style="margin-top: 30px;">
             <p><strong>How it works:</strong></p>
-            <p>When Claude Code needs to write secrets to Vault, you'll receive an approval URL. Open it in your browser, review the changes, and authenticate with your registered device to approve.</p>
+            <p>When Claude Code needs to write secrets to Claude-Vault, you'll receive an approval URL. Open it in your browser, review the changes, and authenticate with your registered device to approve.</p>
         </div>
     </div>
 </body>
@@ -242,9 +272,9 @@ class ApprovalServer:
 
             options = generate_registration_options(
                 rp_id=self.domain,
-                rp_name="Vault Approval",
+                rp_name="Claude-Vault Approval",
                 user_id=user_id,
-                user_name="Vault Admin",
+                user_name="Claude-Vault Admin",
                 authenticator_selection=AuthenticatorSelectionCriteria(
                     authenticator_attachment=AuthenticatorAttachment.PLATFORM,
                     user_verification=UserVerificationRequirement.REQUIRED,
@@ -301,6 +331,9 @@ class ApprovalServer:
         @self.app.get("/approve/{op_id}")
         async def approve_page(op_id: str):
             """WebAuthn approval page for pending operation."""
+            # Reload from disk to get operations created by other processes
+            self._load_pending_operations()
+
             if op_id not in self.pending_ops:
                 raise HTTPException(404, "Operation not found or expired")
 
@@ -381,9 +414,12 @@ class ApprovalServer:
                 op.approved = True
                 op.approved_at = datetime.now().timestamp()
 
+                # Save to disk for cross-process sharing
+                self._save_pending_operations()
+
                 return {
                     "success": True,
-                    "message": f"Operation approved! Vault write to '{op.service}' is now authorized."
+                    "message": f"Operation approved! Claude-Vault write to '{op.service}' is now authorized."
                 }
             except Exception as e:
                 raise HTTPException(400, f"Authentication failed: {e}")
@@ -403,7 +439,7 @@ class ApprovalServer:
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register Authenticator - Vault Approval</title>
+    <title>Register Authenticator - Claude-Vault Approval</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -524,8 +560,8 @@ class ApprovalServer:
 </head>
 <body>
     <div class="header">
-        <h1>🔐 Vault Approval</h1>
-        <p>Secure Secret Management</p>
+        <h1>🔐 Claude-Vault Approval</h1>
+        <p>AI-Assisted Secret Management</p>
     </div>
 
     <div class="card">
@@ -535,7 +571,7 @@ class ApprovalServer:
 
         <div class="info-box">
             <p><strong>What is this?</strong></p>
-            <p>Register your device's biometric authentication (TouchID, Windows Hello, or hardware security key) to securely approve Vault write operations.</p>
+            <p>Register your device's biometric authentication (TouchID, Windows Hello, or hardware security key) to securely approve Claude-Vault write operations.</p>
         </div>
 
         <div class="info-box">
@@ -629,76 +665,292 @@ class ApprovalServer:
 
     def _get_approval_html(self, op: PendingOperation) -> str:
         """Get HTML for approval page."""
-        secrets_html = "<ul>" + "".join(f"<li><strong>{k}</strong></li>" for k in op.secrets.keys()) + "</ul>"
+        # Generate secrets list with preview of first 20 chars
+        secrets_rows = ""
+        for key, value in op.secrets.items():
+            preview = value[:20] + "..." if len(value) > 20 else value
+            secrets_rows += f"""
+            <tr>
+                <td class="secret-key">{key}</td>
+                <td class="secret-value"><code>{preview}</code></td>
+            </tr>
+            """
 
+        # Generate warnings HTML
         warnings_html = ""
         if op.warnings:
-            warnings_html = '<div class="warnings">⚠️ <strong>Security Warnings:</strong><ul>' + \
-                          "".join(f"<li>{w}</li>" for w in op.warnings) + '</ul></div>'
+            warning_items = "".join(f"<li>{w}</li>" for w in op.warnings)
+            warnings_html = f'''
+            <div class="warning-box">
+                <h3>⚠️ Security Warnings</h3>
+                <ul>{warning_items}</ul>
+                <p><strong>Review carefully before approving!</strong></p>
+            </div>
+            '''
 
         return f"""
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Approve Vault Operation</title>
+    <title>Approve Claude-Vault Operation - {op.service}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            max-width: 700px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }}
+        .header {{
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }}
+        .header h1 {{
+            font-size: 2em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }}
+        .header p {{
+            opacity: 0.9;
+            font-size: 1.1em;
         }}
         .card {{
             background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
         }}
-        h1 {{ color: #333; margin-top: 0; }}
-        .info {{ background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; }}
-        .warnings {{ background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; }}
-        .secrets {{ background: #f8f9fa; padding: 15px; border-radius: 5px; }}
-        button {{
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 12px 24px;
+        .back-link {{
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }}
+        .back-link:hover {{
+            transform: translateX(-5px);
+        }}
+        .back-link::before {{
+            content: "← ";
+        }}
+        h2 {{
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .badge {{
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }}
+        .badge-create {{
+            background: #d4edda;
+            color: #155724;
+        }}
+        .badge-update {{
+            background: #fff3cd;
+            color: #856404;
+        }}
+        .info-box {{
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 20px;
+            margin: 20px 0;
             border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-right: 10px;
         }}
-        button:hover {{ background: #218838; }}
-        .deny {{ background: #dc3545; }}
-        .deny:hover {{ background: #c82333; }}
-        #status {{ margin-top: 20px; padding: 15px; border-radius: 5px; }}
-        .success {{ background: #d4edda; color: #155724; }}
-        .error {{ background: #f8d7da; color: #721c24; }}
+        .info-box p {{
+            color: #495057;
+            line-height: 1.8;
+            margin: 8px 0;
+        }}
+        .info-box strong {{
+            color: #333;
+            font-weight: 600;
+        }}
+        .warning-box {{
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }}
+        .warning-box h3 {{
+            color: #856404;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }}
+        .warning-box ul {{
+            margin: 10px 0 10px 20px;
+            color: #856404;
+        }}
+        .warning-box li {{
+            margin: 5px 0;
+        }}
+        .secrets-box {{
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }}
+        .secrets-box h3 {{
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }}
+        .secrets-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }}
+        .secrets-table tr {{
+            border-bottom: 1px solid #dee2e6;
+        }}
+        .secrets-table tr:last-child {{
+            border-bottom: none;
+        }}
+        .secrets-table td {{
+            padding: 12px 8px;
+        }}
+        .secret-key {{
+            font-weight: 600;
+            color: #495057;
+            width: 40%;
+        }}
+        .secret-value {{
+            color: #6c757d;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.9em;
+        }}
+        .secret-value code {{
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #495057;
+        }}
+        .button-group {{
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }}
+        button {{
+            flex: 1;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }}
+        button:hover {{
+            transform: translateY(-2px);
+        }}
+        button:active {{
+            transform: translateY(0);
+        }}
+        button:disabled {{
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }}
+        .btn-approve {{
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }}
+        .btn-approve:hover {{
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }}
+        .btn-deny {{
+            background: #6c757d;
+            color: white;
+        }}
+        .btn-deny:hover {{
+            background: #5a6268;
+        }}
+        #status {{
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+            text-align: center;
+        }}
+        #status.show {{ display: block; }}
+        .success {{
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }}
+        .error {{
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }}
+        .loading {{
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }}
+        .status-icon {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }}
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>🔐 Vault Operation Approval</h1>
+    <div class="header">
+        <h1>🔐 Claude-Vault Approval</h1>
+        <p>AI-Assisted Secret Management</p>
+    </div>
 
-        <div class="info">
+    <div class="card">
+        <a href="/" class="back-link">Back to home</a>
+
+        <h2>
+            Claude-Vault Operation Approval
+            <span class="badge badge-{op.action.lower()}">{op.action}</span>
+        </h2>
+
+        <div class="info-box">
             <p><strong>Service:</strong> {op.service}</p>
-            <p><strong>Action:</strong> {op.action}</p>
-            <p><strong>Path:</strong> secret/proxmox-services/{op.service}</p>
+            <p><strong>Vault Path:</strong> <code>secret/proxmox-services/{op.service}</code></p>
+            <p><strong>Operation:</strong> {op.action} secrets for this service</p>
         </div>
 
         {warnings_html}
 
-        <div class="secrets">
-            <h3>Secrets to be written:</h3>
-            {secrets_html}
+        <div class="secrets-box">
+            <h3>🔑 Secrets to be written ({len(op.secrets)}):</h3>
+            <table class="secrets-table">
+                {secrets_rows}
+            </table>
         </div>
 
-        <p style="margin-top: 20px;">
-            <button onclick="approve()">✅ Approve with WebAuthn</button>
-            <button class="deny" onclick="deny()">❌ Deny</button>
-        </p>
+        <div class="info-box" style="background: #fff3cd; border-color: #ffc107;">
+            <p style="color: #856404;"><strong>⚠️ Important:</strong> Review the secrets above carefully. Once approved, these values will be written to Claude-Vault and made available to the <strong>{op.service}</strong> service.</p>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-approve" onclick="approve()" id="approveBtn">
+                ✅ Approve with WebAuthn
+            </button>
+            <button class="btn-deny" onclick="deny()">
+                ❌ Deny & Close
+            </button>
+        </div>
 
         <div id="status"></div>
     </div>
@@ -717,7 +969,19 @@ class ApprovalServer:
 
         async function approve() {{
             const status = document.getElementById('status');
-            status.innerHTML = 'Requesting authentication...';
+            const approveBtn = document.getElementById('approveBtn');
+            const denyBtn = document.querySelector('.btn-deny');
+
+            // Disable buttons during processing
+            approveBtn.disabled = true;
+            denyBtn.disabled = true;
+
+            // Show loading status
+            status.className = 'show loading';
+            status.innerHTML = `
+                <div class="status-icon">🔄</div>
+                <strong>Requesting authentication...</strong>
+            `;
 
             try {{
                 // Get authentication options
@@ -732,14 +996,23 @@ class ApprovalServer:
                     }});
                 }}
 
-                status.innerHTML = 'Touch your authenticator to approve...';
+                // Update status for authenticator prompt
+                status.innerHTML = `
+                    <div class="status-icon">👆</div>
+                    <strong>Touch your authenticator to approve...</strong>
+                    <p style="margin-top: 10px;">Use TouchID, Windows Hello, or your security key</p>
+                `;
 
                 // Get credential
                 const credential = await navigator.credentials.get({{
                     publicKey: options
                 }});
 
-                status.innerHTML = 'Verifying...';
+                // Update status for verification
+                status.innerHTML = `
+                    <div class="status-icon">⏳</div>
+                    <strong>Verifying authentication...</strong>
+                `;
 
                 // Verify authentication
                 const verifyRes = await fetch('/webauthn/authenticate/verify', {{
@@ -765,14 +1038,29 @@ class ApprovalServer:
                 const result = await verifyRes.json();
 
                 if (result.success) {{
-                    status.className = 'success';
-                    status.innerHTML = '✅ ' + result.message + '<br><br>You can close this window.';
+                    status.className = 'show success';
+                    status.innerHTML = `
+                        <div class="status-icon">✅</div>
+                        <strong>${{result.message}}</strong>
+                        <p style="margin-top: 15px;">The secrets have been approved and written to Claude-Vault.</p>
+                        <p style="margin-top: 10px;">
+                            <a href="/" style="color: #155724; font-weight: 600; text-decoration: underline;">← Return to home</a>
+                        </p>
+                    `;
                 }} else {{
                     throw new Error(result.message || 'Approval failed');
                 }}
             }} catch (err) {{
-                status.className = 'error';
-                status.innerHTML = '❌ Error: ' + err.message;
+                status.className = 'show error';
+                status.innerHTML = `
+                    <div class="status-icon">❌</div>
+                    <strong>Approval Failed</strong>
+                    <p style="margin-top: 10px;">${{err.message}}</p>
+                `;
+
+                // Re-enable buttons on error so user can retry
+                approveBtn.disabled = false;
+                denyBtn.disabled = false;
             }}
         }}
 
@@ -796,7 +1084,8 @@ class ApprovalServer:
         warnings: list = None
     ) -> tuple[str, str]:
         """Create a pending operation and return (operation ID, approval URL)."""
-        op_id = secrets.token_urlsafe(16)
+        import secrets as secrets_module
+        op_id = secrets_module.token_urlsafe(16)
 
         self.pending_ops[op_id] = PendingOperation(
             op_id=op_id,
@@ -807,6 +1096,9 @@ class ApprovalServer:
             created_at=datetime.now().timestamp()
         )
 
+        # Save to disk for cross-process sharing
+        self._save_pending_operations()
+
         # Generate approval URL based on configured origin
         approval_url = f"{self.origin}/approve/{op_id}"
 
@@ -814,6 +1106,9 @@ class ApprovalServer:
 
     def is_approved(self, op_id: str) -> bool:
         """Check if operation is approved."""
+        # Reload from disk to get latest state from other processes
+        self._load_pending_operations()
+
         if op_id not in self.pending_ops:
             return False
 
@@ -830,6 +1125,8 @@ class ApprovalServer:
         """Remove operation after it's been executed."""
         if op_id in self.pending_ops:
             del self.pending_ops[op_id]
+            # Save to disk after cleanup
+            self._save_pending_operations()
 
     def start(self):
         """Start the approval server in a background thread."""
@@ -866,7 +1163,7 @@ def main():
     """Standalone approval server (for debugging)."""
     import sys
     server = ApprovalServer()
-    print(f"🔐 Vault Approval Server")
+    print(f"🔐 Claude-Vault Approval Server")
     print(f"Running on http://localhost:{server.port}")
     print(f"Press Ctrl+C to stop")
 
