@@ -1,0 +1,7 @@
+# Gitleaks configuration
+# Exclude the detect-secrets baseline file from scanning
+
+[allowlist]
+paths = [
+  "^.secrets.baseline$"
+]

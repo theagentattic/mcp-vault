@@ -1,15 +1,24 @@
 # Claude-Vault
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Vibe Coded](https://img.shields.io/badge/vibe--coded-with%20Claude-blueviolet)](https://claude.ai)
+
 Session-based CLI for HashiCorp Vault with AI assistant integration.
+
+> **Note:** This project is vibe-coded with Claude Code - designed through natural conversation with Claude Sonnet 4.5, combining human intent with AI implementation.
 
 ## Features
 
-• Session-based authentication via OIDC + MFA (60-minute token expiry)
-• No persistent credentials (tokens stored only in memory)
-• Manual confirmation checkpoints (protection against prompt injection)
-• Comprehensive audit logging (complete operation trail)
-• Input validation (prevents path traversal and command injection)
-• AI assistant friendly (designed for Claude Code integration)
+- **Session-based authentication** - OIDC + MFA with 60-minute token expiry
+- **Zero persistent credentials** - Tokens stored only in memory for security
+- **WebAuthn approval workflow** - Biometric confirmation (TouchID/Windows Hello) for secret writes
+- **Manual confirmation checkpoints** - Protection against prompt injection attacks
+- **Comprehensive audit logging** - Complete operation trail for compliance
+- **Input validation** - Prevents path traversal and command injection vulnerabilities
+- **AI assistant friendly** - Designed for seamless Claude Code integration
 
 ## Quick Start
 

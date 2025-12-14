@@ -1,0 +1,5 @@
+# Gitleaks ignore file
+# Format: one file path or pattern per line
+
+# Ignore the detect-secrets baseline (contains hashed secrets by design)
+.secrets.baseline
