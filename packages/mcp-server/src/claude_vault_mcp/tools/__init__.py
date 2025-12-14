@@ -1,7 +1,8 @@
 """Tool registry and base classes for MCP tools."""
 
 from typing import Sequence
-from mcp.types import Tool, TextContent
+
+from mcp.types import TextContent, Tool
 
 
 class ToolHandler:

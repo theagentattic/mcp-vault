@@ -369,7 +369,7 @@ def is_approved(token):
 
 **Code Path:**
 ```python
-# In vault_set tool (mcp_vault/tools/write.py):
+# In vault_set tool (claude_vault_mcp/tools/write.py):
 if not approval_server.is_approved(approval_token):
     return "❌ Operation not approved"
     # This check happens IN THE TOOL, not visible to AI

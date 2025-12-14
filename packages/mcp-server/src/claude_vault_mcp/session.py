@@ -2,8 +2,8 @@
 
 import os
 import time
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -15,16 +15,16 @@ class VaultSession:
     vault_token_expiry: int  # Unix timestamp
 
     @classmethod
-    def from_environment(cls) -> Optional['VaultSession']:
+    def from_environment(cls) -> Optional["VaultSession"]:
         """
         Load Vault session from environment variables.
 
         Returns:
             VaultSession if all required env vars are present, None otherwise
         """
-        vault_addr = os.getenv('VAULT_ADDR')
-        vault_token = os.getenv('VAULT_TOKEN')
-        vault_token_expiry = os.getenv('VAULT_TOKEN_EXPIRY')
+        vault_addr = os.getenv("VAULT_ADDR")
+        vault_token = os.getenv("VAULT_TOKEN")
+        vault_token_expiry = os.getenv("VAULT_TOKEN_EXPIRY")
 
         if not vault_addr or not vault_token:
             return None
@@ -41,7 +41,7 @@ class VaultSession:
         return cls(
             vault_addr=vault_addr,
             vault_token=vault_token,
-            vault_token_expiry=expiry if expiry else 0
+            vault_token_expiry=expiry if expiry else 0,
         )
 
     def is_valid(self) -> bool:
@@ -93,7 +93,9 @@ Then restart this MCP server to pick up the new token."""
 
         if not self.is_valid():
             if self.vault_token_expiry > 0:
-                expired_at = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.vault_token_expiry))
+                expired_at = time.strftime(
+                    "%Y-%m-%d %H:%M:%S", time.localtime(self.vault_token_expiry)
+                )
                 return f"""Vault session expired at {expired_at}.
 
 To re-authenticate, the user must run:

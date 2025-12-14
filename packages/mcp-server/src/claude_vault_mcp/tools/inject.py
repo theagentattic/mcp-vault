@@ -1,13 +1,14 @@
 """Injection tool: vault_inject to generate .env or secrets.yaml files."""
 
 import subprocess
-from typing import Sequence
 from pathlib import Path
-from mcp.types import Tool, TextContent
+from typing import Sequence
 
-from ..tools import ToolHandler
-from ..session import VaultSession
+from mcp.types import TextContent, Tool
+
 from ..security import SecurityValidator, ValidationError
+from ..session import VaultSession
+from ..tools import ToolHandler
 
 
 class VaultInjectTool(ToolHandler):
@@ -40,25 +41,27 @@ This tool calls the existing inject-secrets.sh script which handles the template
                         "type": "string",
                         "description": "Output format (env or yaml). If 'auto', detects from service directory.",
                         "enum": ["auto", "env", "yaml"],
-                    }
+                    },
                 },
-                "required": ["service"]
-            }
+                "required": ["service"],
+            },
         )
 
     def run_tool(self, arguments: dict) -> Sequence[TextContent]:
         # Load and validate session
         session = VaultSession.from_environment()
         if not session:
-            error = VaultSession(vault_addr="", vault_token="", vault_token_expiry=0).validate_or_error()
+            error = VaultSession(
+                vault_addr="", vault_token="", vault_token_expiry=0
+            ).validate_or_error()
             return [TextContent(type="text", text=f"❌ {error}")]
 
         error = session.validate_or_error()
         if error:
             return [TextContent(type="text", text=f"❌ {error}")]
 
-        service = arguments.get('service')
-        format_type = arguments.get('format', 'auto')
+        service = arguments.get("service")
+        format_type = arguments.get("format", "auto")
 
         # Validate service name
         try:
@@ -70,32 +73,34 @@ This tool calls the existing inject-secrets.sh script which handles the template
         script_path = Path("/workspace/proxmox-services/scripts/inject-secrets.sh")
 
         if not script_path.exists():
-            return [TextContent(
-                type="text",
-                text=f"""❌ Injection script not found at {script_path}
+            return [
+                TextContent(
+                    type="text",
+                    text=f"""❌ Injection script not found at {script_path}
 
 The inject-secrets.sh script is required for generating configuration files.
 
 Manual injection steps:
 1. Get secrets: vault_get with service='{service}'
 2. Create .env or secrets.yaml file manually
-3. Copy secret values into the file"""
-            )]
+3. Copy secret values into the file""",
+                )
+            ]
 
         # Build command
-        cmd = ['bash', str(script_path), service]
-        if format_type != 'auto':
+        cmd = ["bash", str(script_path), service]
+        if format_type != "auto":
             cmd.append(format_type)
 
         # Set up environment with Vault credentials
         env = {
             **subprocess.os.environ,
-            'VAULT_ADDR': session.vault_addr,
-            'VAULT_TOKEN': session.vault_token,
+            "VAULT_ADDR": session.vault_addr,
+            "VAULT_TOKEN": session.vault_token,
         }
 
         if session.vault_token_expiry:
-            env['VAULT_TOKEN_EXPIRY'] = str(session.vault_token_expiry)
+            env["VAULT_TOKEN_EXPIRY"] = str(session.vault_token_expiry)
 
         try:
             # Run the inject script
@@ -105,15 +110,16 @@ Manual injection steps:
                 text=True,
                 env=env,
                 timeout=30,
-                cwd="/workspace/proxmox-services"
+                cwd="/workspace/proxmox-services",
             )
 
             if result.returncode == 0:
                 # Success
                 output = result.stdout
-                return [TextContent(
-                    type="text",
-                    text=f"""✅ Secrets injected successfully for service: {service}
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"""✅ Secrets injected successfully for service: {service}
 
 {output}
 
@@ -127,14 +133,16 @@ The configuration file has been generated with secrets from Vault.
 **Security reminder:**
 - The generated file contains sensitive data
 - It should be in .gitignore (DO NOT COMMIT)
-- Original file was backed up if it existed"""
-                )]
+- Original file was backed up if it existed""",
+                    )
+                ]
             else:
                 # Error
                 error_output = result.stderr or result.stdout
-                return [TextContent(
-                    type="text",
-                    text=f"""❌ Injection failed for service: {service}
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"""❌ Injection failed for service: {service}
 
 Error:
 ```
@@ -149,28 +157,33 @@ Possible causes:
 To debug:
 1. Check if service exists: vault_list with service='{service}'
 2. Verify service directory exists
-3. Check file permissions"""
-                )]
+3. Check file permissions""",
+                    )
+                ]
 
         except subprocess.TimeoutExpired:
-            return [TextContent(
-                type="text",
-                text=f"""❌ Injection timed out after 30 seconds.
+            return [
+                TextContent(
+                    type="text",
+                    text=f"""❌ Injection timed out after 30 seconds.
 
 The inject-secrets.sh script took too long to complete.
 
 Try:
 1. Check Vault connectivity: vault_status
-2. Run injection manually: bash {script_path} {service}"""
-            )]
+2. Run injection manually: bash {script_path} {service}""",
+                )
+            ]
         except Exception as e:
-            return [TextContent(
-                type="text",
-                text=f"""❌ Unexpected error during injection: {str(e)}
+            return [
+                TextContent(
+                    type="text",
+                    text=f"""❌ Unexpected error during injection: {str(e)}
 
 This may indicate an issue with the inject-secrets.sh script or environment.
 
 Manual fallback:
 1. Get secrets: vault_get with service='{service}'
-2. Create configuration file manually"""
-            )]
+2. Create configuration file manually""",
+                )
+            ]

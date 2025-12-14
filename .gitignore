@@ -17,7 +17,7 @@ VAULT_TOKEN
 pending-operations.json
 completed-operations.json
 
-# Python (for mcp_vault)
+# Python (for MCP server)
 __pycache__/
 *.py[cod]
 *$py.class

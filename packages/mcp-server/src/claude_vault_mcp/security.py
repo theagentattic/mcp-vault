@@ -1,15 +1,16 @@
 """Security validation, confirmation prompts, and audit logging."""
 
+import json
 import re
 import sys
-import json
 from datetime import datetime
-from typing import List, Dict
 from pathlib import Path
+from typing import Dict, List
 
 
 class ValidationError(Exception):
     """Raised when input validation fails."""
+
     pass
 
 
@@ -18,14 +19,14 @@ class SecurityValidator:
 
     # Dangerous patterns that might indicate command injection
     DANGEROUS_PATTERNS = [
-        (r'\$\(', 'command substitution: $(...)'),
-        (r'`', 'backticks (command execution)'),
-        (r'\$\{', 'variable expansion: ${...}'),
-        (r'&&', 'command chaining: &&'),
-        (r'\|\|', 'command chaining: ||'),
-        (r';', 'command separator: ;'),
-        (r'\n', 'newline character'),
-        (r'\r', 'carriage return'),
+        (r"\$\(", "command substitution: $(...)"),
+        (r"`", "backticks (command execution)"),
+        (r"\$\{", "variable expansion: ${...}"),
+        (r"&&", "command chaining: &&"),
+        (r"\|\|", "command chaining: ||"),
+        (r";", "command separator: ;"),
+        (r"\n", "newline character"),
+        (r"\r", "carriage return"),
     ]
 
     @staticmethod
@@ -45,14 +46,14 @@ class SecurityValidator:
         if len(name) > 64:
             raise ValidationError("Service name too long (max 64 characters)")
 
-        if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+        if not re.match(r"^[a-zA-Z0-9_-]+$", name):
             raise ValidationError(
                 "Service name must contain only letters, numbers, dash, and underscore. "
                 "This prevents path traversal and injection attacks."
             )
 
         # Prevent dangerous patterns
-        if '..' in name or name.startswith('/') or '/' in name:
+        if ".." in name or name.startswith("/") or "/" in name:
             raise ValidationError(
                 "Service name cannot contain '..' or '/' (path traversal prevention)"
             )
@@ -74,7 +75,7 @@ class SecurityValidator:
         if len(name) > 128:
             raise ValidationError("Key name too long (max 128 characters)")
 
-        if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+        if not re.match(r"^[a-zA-Z0-9_-]+$", name):
             raise ValidationError(
                 "Key name must contain only letters, numbers, dash, and underscore"
             )
@@ -115,7 +116,9 @@ class ConfirmationPrompt:
     """Interactive confirmation for write operations."""
 
     @staticmethod
-    def prompt_user(service: str, action: str, secrets: Dict[str, str], warnings: List[str] = None) -> bool:
+    def prompt_user(
+        service: str, action: str, secrets: Dict[str, str], warnings: List[str] = None
+    ) -> bool:
         """
         Display security checkpoint and get user confirmation.
 
@@ -198,10 +201,12 @@ class AuditLogger:
             user: User/source of the action
         """
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        log_entry = f"[{timestamp}] USER={user} ACTION={action} SERVICE={service} DETAILS={details}\n"
+        log_entry = (
+            f"[{timestamp}] USER={user} ACTION={action} SERVICE={service} DETAILS={details}\n"
+        )
 
         try:
-            with open(self.log_path, 'a') as f:
+            with open(self.log_path, "a") as f:
                 f.write(log_entry)
         except Exception as e:
             print(f"Warning: Could not write to audit log: {e}", file=sys.stderr)

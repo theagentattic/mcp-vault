@@ -168,7 +168,14 @@ class ApprovalServer:
                 <circle cx="50" cy="60" r="4" fill="#667eea"/>
                 <rect x="48" y="60" width="4" height="8" fill="#667eea"/>
             </svg>"""
-            return HTMLResponse(content=svg, media_type="image/svg+xml")
+            return HTMLResponse(
+                content=svg,
+                media_type="image/svg+xml",
+                headers={
+                    "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
 
         @self.app.get("/")
         async def index():

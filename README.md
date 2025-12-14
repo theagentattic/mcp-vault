@@ -6,23 +6,141 @@
 [![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Vibe Coded](https://img.shields.io/badge/vibe--coded-with%20Claude-blueviolet)](https://claude.ai)
 
-Session-based CLI for HashiCorp Vault with AI assistant integration.
+**Secure HashiCorp Vault management for Docker services with AI-assisted workflows**
 
-> **Note:** This project is vibe-coded with Claude Code - designed through natural conversation with Claude Sonnet 4.5, combining human intent with AI implementation.
+Claude-Vault provides two complementary tools:
+- **MCP Server** - Model Context Protocol integration for Claude Code AI assistance (recommended)
+- **CLI** - Bash scripts for session-based Vault authentication and secret management
+
+## Why This Exists
+
+**The Problem:**
+Managing many Docker/docker-compose services, each with their own `.env` files and hardcoded credentials scattered everywhere. Not scalable, not secure, not production-ready.
+
+**The Goal:**
+Migrate from non-production chaos (passwords in docker-compose files, untracked `.env` files) to a production-oriented HashiCorp Vault setup that's:
+- **Cloud-compatible** - Works across infrastructure
+- **AI-assisted** - Claude Code helps migrate services and manage secrets
+- **Secure by default** - Human-in-the-loop validation via WebAuthn prevents unauthorized AI writes
+
+**The Result:**
+AI handles the tedious migration work (reading old configs, registering secrets), but **cannot make unauthorized changes** to production secrets without your biometric approval.
+
+> **Note:** This entire project was built with Claude Code - designed through conversation, combining human intent with AI implementation.
 
 ## Features
 
+### MCP Server (`packages/mcp-server/`)
+- **Claude Code integration** - Expose Vault operations as AI tools
+- **WebAuthn approval workflow** - Biometric confirmation (TouchID/Windows Hello) for secret writes
+- **Prompt injection protection** - Human-in-the-loop checkpoints prevent AI from making unauthorized changes
+- **Operation history** - Track approved and pending operations via web UI
+- **Device management** - Register and manage WebAuthn devices (security keys, biometrics)
+
+### CLI Tool (`packages/cli/`)
 - **Session-based authentication** - OIDC + MFA with 60-minute token expiry
 - **Zero persistent credentials** - Tokens stored only in memory for security
-- **WebAuthn approval workflow** - Biometric confirmation (TouchID/Windows Hello) for secret writes
-- **Manual confirmation checkpoints** - Protection against prompt injection attacks
 - **Comprehensive audit logging** - Complete operation trail for compliance
 - **Input validation** - Prevents path traversal and command injection vulnerabilities
-- **AI assistant friendly** - Designed for seamless Claude Code integration
+- **Service-oriented** - Designed for managing Docker service secrets
 
-## WebAuthn Approval UI
+## Repository Structure
 
-The approval server provides a clean web interface for reviewing and approving Vault operations with biometric authentication. Here's the complete workflow:
+```
+claude-vault/
+├── packages/
+│   ├── mcp-server/       # Python MCP server for Claude Code integration (recommended)
+│   └── cli/              # Bash CLI scripts for Vault operations
+└── docs/                 # Documentation
+```
+
+## Quick Start
+
+### Option 1: MCP Server (AI-Assisted Management) - Recommended
+
+**Installation:**
+```bash
+cd packages/mcp-server
+pip install -e .
+```
+
+**Configure for Claude Code:**
+
+Add to your project's `.mcp.json`:
+```json
+{
+  "mcpServers": {
+    "claude-vault": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "/path/to/claude-vault/packages/mcp-server",
+        "claude-vault-mcp"
+      ],
+      "env": {
+        "VAULT_ADDR": "https://vault.example.com"
+      }
+    }
+  }
+}
+```
+
+**Start approval server:**
+```bash
+vault-approve-server  # Starts on http://localhost:8091
+```
+
+Now Claude Code can help you manage secrets, with WebAuthn approval for write operations.
+
+### Option 2: CLI Only (Manual Vault Management)
+
+**Quick install (recommended):**
+```bash
+# Install latest release
+curl -fsSL https://github.com/weber8thomas/claude-vault/releases/latest/download/install.sh | sudo bash
+
+# Or install to ~/.local/bin (no sudo)
+curl -fsSL https://github.com/weber8thomas/claude-vault/releases/latest/download/install.sh | PREFIX="$HOME/.local/bin" bash
+```
+
+**Install specific version:**
+```bash
+VERSION="v1.0.0"
+curl -fsSL "https://github.com/weber8thomas/claude-vault/releases/download/${VERSION}/install.sh" | sudo bash
+```
+
+**Manual installation:**
+```bash
+# Clone from source
+git clone https://github.com/weber8thomas/claude-vault.git
+cd claude-vault
+sudo ./install.sh
+```
+
+**Authentication:**
+```bash
+source claude-vault login
+```
+
+**Usage:**
+```bash
+claude-vault list                  # List all services
+claude-vault get esphome           # Get secret values
+claude-vault set myapp KEY=val     # Register secrets
+claude-vault inject authentik      # Inject to .env file
+```
+
+**Available commands:**
+- `login` - Authenticate via OIDC
+- `status` - Check session status
+- `logout` - Revoke token
+- `list` - List services/secrets
+- `get` - Get secret values
+- `set` - Create/update secrets
+- `inject` - Inject secrets to .env file
+
+## WebAuthn Approval Workflow
 
 <table>
   <tr>
@@ -51,65 +169,17 @@ The approval server provides a clean web interface for reviewing and approving V
   </tr>
 </table>
 
-## Quick Start
-
-### Installation
-
-**Quick install (recommended):**
-```bash
-# Install latest release
-curl -fsSL https://github.com/weber8thomas/claude-vault/releases/latest/download/install.sh | sudo bash
-
-# Or install to ~/.local/bin (no sudo)
-curl -fsSL https://github.com/weber8thomas/claude-vault/releases/latest/download/install.sh | PREFIX="$HOME/.local/bin" bash
-```
-
-**Install specific version:**
-```bash
-VERSION="v1.0.0"
-curl -fsSL "https://github.com/weber8thomas/claude-vault/releases/download/${VERSION}/install.sh" | sudo bash
-```
-
-**Manual installation:**
-```bash
-# Clone from source
-git clone https://github.com/weber8thomas/claude-vault.git
-cd claude-vault
-sudo ./install.sh
-```
-
-### Authentication
-```bash
-source claude-vault login
-```
-
-### Usage
-```bash
-claude-vault list                  # List all services
-claude-vault get esphome           # Get secret values
-claude-vault set myapp KEY=val     # Register secrets
-claude-vault inject authentik      # Inject to .env file
-```
-
 ## Documentation
 
-- [Setup Guide](docs/SETUP.md) - Complete installation and configuration
-- [Quick Start](docs/QUICK_START.md) - AI assistant reference
+### MCP Server
 - [MCP Integration](docs/MCP.md) - Model Context Protocol server setup
+- [WebAuthn Setup](packages/mcp-server/WEBAUTHN_SETUP.md) - Security architecture details
+- [MCP Server README](packages/mcp-server/README.md) - MCP package details
 
-## Commands
-
-- `login` - Authenticate via OIDC
-- `status` - Check session status
-- `logout` - Revoke token
-- `list` - List services/secrets
-- `get` - Get secret values
-- `set` - Create/update secrets
-- `inject` - Inject secrets to .env file
-
-## MCP Server
-
-This repository also includes an MCP (Model Context Protocol) server for Vault integration with Claude Code. See [mcp_vault/](mcp_vault/) for details.
+### CLI Tool
+- [Setup Guide](docs/SETUP.md) - Complete installation and configuration
+- [Quick Start](docs/QUICK_START.md) - CLI reference guide
+- [CLI README](packages/cli/README.md) - CLI package details
 
 ## Releases
 

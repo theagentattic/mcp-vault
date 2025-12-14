@@ -4,7 +4,7 @@ This guide explains how to use the MCP-Vault server with Claude Code CLI for AI-
 
 ## What is MCP?
 
-**Model Context Protocol (MCP)** is Anthropic's standard for exposing tools to Claude. The mcp-vault server exposes 7 Vault operations as tools that Claude Code can use automatically:
+**Model Context Protocol (MCP)** is Anthropic's standard for exposing tools to Claude. The claude-vault MCP server exposes 7 Vault operations as tools that Claude Code can use automatically:
 
 - `vault_login` - Authentication guidance
 - `vault_status` - Session validation
@@ -22,17 +22,17 @@ The MCP server is **already configured** in this repository via `.mcp.json`:
 
 ```bash
 # Verify it's configured
-claude mcp get mcp-vault
+claude mcp get claude-vault
 ```
 
 You should see:
 ```
-mcp-vault:
+claude-vault:
   Scope: Project config (shared via .mcp.json)
   Status: ✓ Connected
   Type: stdio
   Command: uvx
-  Args: --from /workspace/proxmox-services/mcp-vault mcp-vault
+  Args: --from /path/to/claude-vault/packages/mcp-server claude-vault-mcp
   Environment:
     VAULT_ADDR=https://vault.laboiteaframboises.duckdns.org
 ```
@@ -42,13 +42,13 @@ mcp-vault:
 If you're setting up on a fresh system:
 
 ```bash
-cd /workspace/proxmox-services
+cd /path/to/your/project
 
 # The .mcp.json file should already exist (committed to git)
 # Claude Code will auto-detect it
 
 # Verify the server is available
-claude mcp get mcp-vault
+claude mcp get claude-vault
 ```
 
 ## Daily Usage
@@ -192,13 +192,13 @@ source claude-vault login
 **Solution:**
 ```bash
 # 1. Check if .mcp.json exists
-ls -la /workspace/proxmox-services/.mcp.json
+ls -la .mcp.json
 
 # 2. Verify MCP server status
-claude mcp get mcp-vault
+claude mcp get claude-vault
 
 # 3. If disconnected, check you're in the right directory
-cd /workspace/proxmox-services
+cd /path/to/your/project
 ```
 
 ### "Permission denied" (HTTP 403)
@@ -242,15 +242,15 @@ See [CLAUDE_VAULT_SETUP.md](./CLAUDE_VAULT_SETUP.md#prerequisites) for complete 
 ### Tools not appearing
 
 **Check:**
-1. Type `/mcp` to see if mcp-vault is listed
-2. Verify connection status: `claude mcp get mcp-vault`
-3. Ensure you're in `/workspace/proxmox-services` directory
+1. Type `/mcp` to see if claude-vault is listed
+2. Verify connection status: `claude mcp get claude-vault`
+3. Ensure you're in your project directory (where `.mcp.json` exists)
 4. Try removing and re-adding:
    ```bash
-   claude mcp remove mcp-vault -s project
-   claude mcp add --transport stdio mcp-vault --scope project \
-     --env VAULT_ADDR=https://vault.laboiteaframboises.duckdns.org \
-     -- uvx --from /workspace/proxmox-services/mcp-vault mcp-vault
+   claude mcp remove claude-vault -s project
+   claude mcp add --transport stdio claude-vault --scope project \
+     --env VAULT_ADDR=https://vault.example.com \
+     -- uvx --from /path/to/claude-vault/packages/mcp-server claude-vault-mcp
    ```
 
 ## How It Works
@@ -318,16 +318,16 @@ See [CLAUDE_VAULT_SETUP.md](./CLAUDE_VAULT_SETUP.md#prerequisites) for complete 
 ```json
 {
   "mcpServers": {
-    "mcp-vault": {
+    "claude-vault": {
       "type": "stdio",
       "command": "uvx",
       "args": [
         "--from",
-        "/workspace/proxmox-services/mcp-vault",
-        "mcp-vault"
+        "/path/to/claude-vault/packages/mcp-server",
+        "claude-vault-mcp"
       ],
       "env": {
-        "VAULT_ADDR": "https://vault.laboiteaframboises.duckdns.org"
+        "VAULT_ADDR": "https://vault.example.com"
       }
     }
   }
@@ -337,7 +337,7 @@ See [CLAUDE_VAULT_SETUP.md](./CLAUDE_VAULT_SETUP.md#prerequisites) for complete 
 **Key fields:**
 - `type`: "stdio" (MCP server uses stdin/stdout for communication)
 - `command`: "uvx" (Python package runner by Astral)
-- `args`: Path to mcp-vault package
+- `args`: Path to claude-vault-mcp package
 - `env.VAULT_ADDR`: Public Vault URL (not sensitive, safe to commit)
 
 **Not in config:**
@@ -369,7 +369,7 @@ MCP servers can be configured at three scopes:
 Use MCP Inspector for debugging:
 
 ```bash
-npx @modelcontextprotocol/inspector uvx --from /workspace/proxmox-services/mcp-vault mcp-vault
+npx @modelcontextprotocol/inspector uvx --from /path/to/claude-vault/packages/mcp-server claude-vault-mcp
 ```
 
 This opens a web UI where you can:
@@ -380,7 +380,7 @@ This opens a web UI where you can:
 
 ### Developing New Tools
 
-See `/workspace/proxmox-services/mcp-vault/README.md` for developer documentation.
+See `packages/mcp-server/README.md` for developer documentation.
 
 ### Environment Variables
 
@@ -400,5 +400,5 @@ echo "VAULT_TOKEN_EXPIRY: $VAULT_TOKEN_EXPIRY"
 ## See Also
 
 - [Vault Quick Start Guide](./VAULT_QUICK_START.md) - Basic claude-vault commands
-- [MCP-Vault README](../mcp-vault/README.md) - Full server documentation
+- [Claude-Vault MCP README](../packages/mcp-server/README.md) - Full server documentation
 - [Claude Code Docs](https://docs.claude.ai/claude-code) - Official Claude Code documentation

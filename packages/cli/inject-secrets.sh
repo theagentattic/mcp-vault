@@ -102,7 +102,7 @@ SECRETS_JSON=$(curl -sk \
     --header "X-Vault-Token: $VAULT_TOKEN" \
     "$VAULT_ADDR/v1/$VAULT_PATH" | jq -r '.data.data')
 
-if [ "$SECRETS_JSON" == "null" ] || [ -z "$SECRETS_JSON" ]; then
+if [ "$SECRETS_JSON" == "null" ] || [ -z "$SECRETS_JSON" ]; then  # pragma: allowlist secret
     echo -e "${RED}❌ Failed to fetch secrets from Vault${NC}"
     echo "Please check:"
     echo "  1. VAULT_TOKEN is valid"

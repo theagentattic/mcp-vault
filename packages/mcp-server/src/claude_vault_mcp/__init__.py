@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+
 from .server import app
 
 
@@ -14,11 +15,7 @@ async def main():
     from mcp.server.stdio import stdio_server
 
     async with stdio_server() as (read_stream, write_stream):
-        await app.run(
-            read_stream,
-            write_stream,
-            app.create_initialization_options()
-        )
+        await app.run(read_stream, write_stream, app.create_initialization_options())
 
 
 def run():

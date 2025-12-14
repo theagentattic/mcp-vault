@@ -1,13 +1,14 @@
 """Authentication tools: vault_login, vault_logout."""
 
-import subprocess
 import os
-from typing import Sequence
+import subprocess
 from pathlib import Path
-from mcp.types import Tool, TextContent
+from typing import Sequence
 
-from ..tools import ToolHandler
+from mcp.types import TextContent, Tool
+
 from ..session import VaultSession
+from ..tools import ToolHandler
 from ..vault_client import VaultClient
 
 
@@ -28,30 +29,29 @@ It will provide instructions for the user to complete the authentication, after 
 restart the MCP server to pick up the new token.
 
 The tool calls the existing vault-login-simple.sh script to handle the complex OIDC flow.""",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
+            inputSchema={"type": "object", "properties": {}, "required": []},
         )
 
     def run_tool(self, arguments: dict) -> Sequence[TextContent]:
         # Check if VAULT_ADDR is set
-        vault_addr = os.getenv('VAULT_ADDR')
+        vault_addr = os.getenv("VAULT_ADDR")
         if not vault_addr:
-            return [TextContent(
-                type="text",
-                text="""❌ VAULT_ADDR environment variable not set.
+            return [
+                TextContent(
+                    type="text",
+                    text="""❌ VAULT_ADDR environment variable not set.
 
 Before authenticating, the user must set:
   export VAULT_ADDR='https://vault.example.com'
 
-Then run vault_login again."""
-            )]
+Then run vault_login again.""",
+                )
+            ]
 
-        return [TextContent(
-            type="text",
-            text=f"""🔐 Vault OIDC Authentication
+        return [
+            TextContent(
+                type="text",
+                text=f"""🔐 Vault OIDC Authentication
 
 To authenticate, the **user** must run the following in their terminal:
 
@@ -74,8 +74,9 @@ This will:
 
 ⚠️ Note: This MCP server cannot execute the login script directly because it would run
 in a subprocess with a separate environment. The user must source the script in their
-shell to export the variables properly."""
-            )]
+shell to export the variables properly.""",
+            )
+        ]
 
 
 class VaultLogoutTool(ToolHandler):
@@ -92,24 +93,22 @@ variables. This invalidates the session and requires re-authentication for futur
 
 ⚠️ IMPORTANT: After logout, the user must manually unset environment variables and restart
 the MCP server.""",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
+            inputSchema={"type": "object", "properties": {}, "required": []},
         )
 
     def run_tool(self, arguments: dict) -> Sequence[TextContent]:
         # Load session
         session = VaultSession.from_environment()
         if not session:
-            return [TextContent(
-                type="text",
-                text="""ℹ️ No active Vault session found.
+            return [
+                TextContent(
+                    type="text",
+                    text="""ℹ️ No active Vault session found.
 
 Environment variables are not set. If you previously authenticated,
-they may have already been cleared."""
-            )]
+they may have already been cleared.""",
+                )
+            ]
 
         # Attempt to revoke token
         client = VaultClient(session.vault_addr, session.vault_token)
@@ -120,9 +119,10 @@ they may have already been cleared."""
         else:
             revoke_message = f"⚠️ Could not revoke token: {response.error}\n(Token may have already been revoked or expired)"
 
-        return [TextContent(
-            type="text",
-            text=f"""{revoke_message}
+        return [
+            TextContent(
+                type="text",
+                text=f"""{revoke_message}
 
 **To complete logout, the user must:**
 
@@ -139,5 +139,6 @@ unset VAULT_ADDR
    (Should show "No Vault session found")
 
 **Note:** Environment variables in this MCP server process remain set until restart.
-The token has been revoked in Vault but environment cleanup requires user action."""
-        )]
+The token has been revoked in Vault but environment cleanup requires user action.""",
+            )
+        ]
