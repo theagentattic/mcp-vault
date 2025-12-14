@@ -99,6 +99,9 @@ You: Claude, inject the authentik secrets to its .env file
 → Uses vault_inject tool
 ```
 
+![Claude Code Vault Interaction](images/prompt.png)
+*Example of Claude Code using the vault_set tool with MCP*
+
 ### Step 3: View Available Tools
 
 Type `/mcp` in Claude Code to see all available MCP servers and tools:

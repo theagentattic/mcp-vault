@@ -1,39 +1,33 @@
-# Screenshots Needed
+# Screenshots - Documentation Status
 
-Please capture the following screenshots and save them to this directory:
+✅ All screenshots have been added and integrated into documentation!
 
-## Required Screenshots
+## Completed Screenshots
 
-### 1. `home-page.png`
-- **URL**: http://localhost:8091 or https://vault-approve.laboiteaframboises.duckdns.org/
-- **What to capture**: Full page showing server status, pending operations count, registered devices
-- **State**: After registration is complete (so it shows "Setup Complete")
-- **Recommended size**: ~400-600KB (compress if larger)
+### ✅ 1. `home-page.png` (2.0M)
+- **Used in**: `mcp_vault/WEBAUTHN_SETUP.md`
+- **Shows**: Server status, pending operations, registered devices
+- **Status**: ✅ Added and documented
 
-### 2. `registration-page.png`
-- **URL**: http://localhost:8091/register or https://vault-approve.laboiteaframboises.duckdns.org/register
-- **What to capture**: The registration interface before clicking the button
-- **Shows**: Purple gradient header, "Register Authenticator" button, info boxes
-- **Recommended size**: ~400-600KB
+### ✅ 2. `approval-page.png` (2.6M)
+- **Used in**: `mcp_vault/WEBAUTHN_SETUP.md`
+- **Shows**: Approval page with service details and secrets preview
+- **Status**: ✅ Added and documented
 
-### 3. `approval-page.png`
-- **URL**: Open any approval URL (create a test vault_set operation to get one)
-- **What to capture**: The approval page showing:
-  - Service name
-  - Vault path
-  - Secrets table with preview
-  - "Approve with WebAuthn" and "Deny" buttons
-- **State**: Before clicking approve
-- **Recommended size**: ~400-600KB
+### ✅ 3. `approval-page-touchid.png` (3.1M)
+- **Used in**: `mcp_vault/WEBAUTHN_SETUP.md`
+- **Shows**: TouchID authentication prompt during approval
+- **Status**: ✅ Added and documented
 
-### 4. `approval-success.png`
-- **URL**: Same as approval page, but after successful authentication
-- **What to capture**: Success message showing:
-  - Green checkmark ✅
-  - "Operation approved!" message
-  - "Secrets have been approved and written to Claude-Vault"
-  - "Return to home" link
-- **Recommended size**: ~400-600KB
+### ✅ 4. `approval-page-success.png` (2.7M)
+- **Used in**: `mcp_vault/WEBAUTHN_SETUP.md`
+- **Shows**: Success message after approval
+- **Status**: ✅ Added and documented
+
+### ✅ 5. `prompt.png` (114K)
+- **Used in**: `docs/MCP.md`
+- **Shows**: Claude Code using vault_set tool with MCP
+- **Status**: ✅ Added and documented
 
 ## How to Capture
 

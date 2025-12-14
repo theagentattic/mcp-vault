@@ -39,8 +39,7 @@ Open your browser and navigate to:
 http://localhost:8091/register
 ```
 
-![Registration Page](../docs/images/registration-page.png)
-*The WebAuthn registration interface*
+> **Note:** A device name input field will appear allowing you to name your authenticator (e.g., "My MacBook Pro", "Work Laptop", "YubiKey"). The page auto-suggests a name based on your browser.
 
 **What you'll see:**
 1. A page titled "🔐 Claude-Vault Approval"
@@ -106,11 +105,12 @@ After approval, call vault_set again with:
 *Review the secrets that will be written to Vault*
 
 # 4. You click "Approve with WebAuthn"
-[TouchID/Windows Hello/YubiKey prompt appears]
+![TouchID Prompt](../docs/images/approval-page-touchid.png)
+*TouchID/Windows Hello/YubiKey authentication prompt appears*
 
 # 5. You authenticate
-![Success Message](../docs/images/approval-success.png)
-*Operation approved successfully with return link to home*
+![Success Message](../docs/images/approval-page-success.png)
+*Operation approved successfully - secrets written to Claude-Vault*
 
 # 6. Call vault_set again with token
 vault_set(service="myapp", secrets={"DB_PASS": "secret123"}, approval_token="abc123xyz")

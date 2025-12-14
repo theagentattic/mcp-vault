@@ -2,36 +2,37 @@
 
 import json
 import os
-import secrets
+import secrets as secrets_module
 import sys
 import threading
-from datetime import datetime, timedelta
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
-from dataclasses import dataclass, asdict
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
     generate_authentication_options,
-    verify_authentication_response,
+    generate_registration_options,
     options_to_json,
-)
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria,
-    UserVerificationRequirement,
-    AuthenticatorAttachment,
-    PublicKeyCredentialDescriptor,
+    verify_authentication_response,
+    verify_registration_response,
 )
 from webauthn.helpers.cose import COSEAlgorithmIdentifier
+from webauthn.helpers.structs import (
+    AuthenticatorAttachment,
+    AuthenticatorSelectionCriteria,
+    PublicKeyCredentialDescriptor,
+    UserVerificationRequirement,
+)
 
 
 @dataclass
 class PendingOperation:
     """Pending vault operation awaiting approval."""
+
     op_id: str
     service: str
     action: str  # CREATE or UPDATE
@@ -45,7 +46,12 @@ class PendingOperation:
 class ApprovalServer:
     """Manages pending operations and WebAuthn approvals."""
 
-    def __init__(self, port: int = 8091, domain: str = "vault-approve.laboiteaframboises.duckdns.org", origin: str = "https://vault-approve.laboiteaframboises.duckdns.org"):
+    def __init__(
+        self,
+        port: int = 8091,
+        domain: str = "vault-approve.laboiteaframboises.duckdns.org",
+        origin: str = "https://vault-approve.laboiteaframboises.duckdns.org",
+    ):
         self.port = port
         self.domain = domain  # rp_id for WebAuthn
         self.origin = origin  # Expected origin for WebAuthn
@@ -96,8 +102,9 @@ class ApprovalServer:
                     self.pending_ops[op_id] = PendingOperation(**op_data)
                 # Clean up expired operations (older than 5 minutes)
                 now = datetime.now().timestamp()
-                expired = [op_id for op_id, op in self.pending_ops.items()
-                          if now - op.created_at > 300]
+                expired = [
+                    op_id for op_id, op in self.pending_ops.items() if now - op.created_at > 300
+                ]
                 for op_id in expired:
                     del self.pending_ops[op_id]
                 if expired:
@@ -121,7 +128,8 @@ class ApprovalServer:
         async def index():
             """Server status page."""
             has_auth = len(self.credentials_db) > 0
-            return HTMLResponse(f"""
+            return HTMLResponse(
+                f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -192,6 +200,9 @@ class ApprovalServer:
             font-weight: 600;
             transition: transform 0.2s, box-shadow 0.2s;
             margin: 10px 10px 10px 0;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
         }}
         .action-button:hover {{
             transform: translateY(-2px);
@@ -199,6 +210,10 @@ class ApprovalServer:
         }}
         .action-button.secondary {{
             background: #6c757d;
+        }}
+        button.action-button {{
+            width: auto;
+            display: block;
         }}
         .info-box {{
             background: #e7f3ff;
@@ -218,6 +233,65 @@ class ApprovalServer:
         h2 {{
             color: #333;
             margin-bottom: 15px;
+        }}
+        .list-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }}
+        .list-table th {{
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }}
+        .list-table td {{
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+        }}
+        .list-table tr:last-child td {{
+            border-bottom: none;
+        }}
+        .badge {{
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }}
+        .badge-success {{
+            background: #d4edda;
+            color: #155724;
+        }}
+        .badge-warning {{
+            background: #fff3cd;
+            color: #856404;
+        }}
+        .badge-info {{
+            background: #d1ecf1;
+            color: #0c5460;
+        }}
+        .badge-secondary {{
+            background: #e2e3e5;
+            color: #383d41;
+        }}
+        .empty-state {{
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+            font-style: italic;
+        }}
+        .credential-id {{
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.85em;
+            color: #6c757d;
+        }}
+        .time-ago {{
+            font-size: 0.9em;
+            color: #6c757d;
         }}
     </style>
 </head>
@@ -250,15 +324,42 @@ class ApprovalServer:
         <h2 style="margin-top: 30px;">Actions</h2>
 
         {'<a href="/register" class="action-button secondary">Manage Authenticators</a>' if has_auth else '<a href="/register" class="action-button">Register Authenticator</a>'}
+        {f'<button onclick="resetCredentials()" class="action-button" style="background: #dc3545; margin-top: 10px;">🗑️ Reset Authenticator</button>' if has_auth else ''}
 
         <div class="info-box" style="margin-top: 30px;">
             <p><strong>How it works:</strong></p>
             <p>When Claude Code needs to write secrets to Claude-Vault, you'll receive an approval URL. Open it in your browser, review the changes, and authenticate with your registered device to approve.</p>
         </div>
     </div>
+
+    {self._get_registered_devices_html()}
+    {self._get_pending_operations_html()}
+
+    <script>
+        async function resetCredentials() {{
+            if (!confirm('⚠️ Are you sure you want to delete all registered authenticators?\\n\\nYou will need to re-register your device to approve vault operations.')) {{
+                return;
+            }}
+
+            try {{
+                const response = await fetch('/reset-credentials', {{ method: 'POST' }});
+                const result = await response.json();
+
+                if (result.success) {{
+                    alert('✅ ' + result.message);
+                    window.location.reload();
+                }} else {{
+                    alert('❌ Failed to reset credentials: ' + (result.message || 'Unknown error'));
+                }}
+            }} catch (err) {{
+                alert('❌ Error: ' + err.message);
+            }}
+        }}
+    </script>
 </body>
 </html>
-            """)
+            """
+            )
 
         @self.app.get("/register")
         async def register_page():
@@ -286,13 +387,12 @@ class ApprovalServer:
             )
 
             # Store challenge
-            session_id = secrets.token_urlsafe(32)
+            session_id = secrets_module.token_urlsafe(32)
             self.challenges[session_id] = options.challenge
 
-            return JSONResponse({
-                "options": json.loads(options_to_json(options)),
-                "sessionId": session_id
-            })
+            return JSONResponse(
+                {"options": json.loads(options_to_json(options)), "sessionId": session_id}
+            )
 
         @self.app.post("/webauthn/register/verify")
         async def register_verify(request: Request):
@@ -300,6 +400,7 @@ class ApprovalServer:
             data = await request.json()
             session_id = data.get("sessionId")
             credential = data.get("credential")
+            device_name = data.get("deviceName", "Unnamed Device")
 
             if not session_id or session_id not in self.challenges:
                 raise HTTPException(400, "Invalid session")
@@ -316,11 +417,14 @@ class ApprovalServer:
 
                 # Store credential
                 user_id = "vault-admin"
+                now_timestamp = datetime.now().timestamp()
                 self.credentials_db[user_id] = {
                     "credential_id": verification.credential_id.hex(),
                     "public_key": verification.credential_public_key.hex(),
                     "sign_count": verification.sign_count,
                     "created_at": datetime.now().isoformat(),
+                    "registered_at": now_timestamp,
+                    "device_name": device_name,
                 }
                 self._save_credentials()
 
@@ -358,20 +462,19 @@ class ApprovalServer:
 
             options = generate_authentication_options(
                 rp_id=self.domain,
-                allow_credentials=[PublicKeyCredentialDescriptor(
-                    id=bytes.fromhex(credential["credential_id"])
-                )],
+                allow_credentials=[
+                    PublicKeyCredentialDescriptor(id=bytes.fromhex(credential["credential_id"]))
+                ],
                 user_verification=UserVerificationRequirement.REQUIRED,
             )
 
             # Store challenge
-            session_id = secrets.token_urlsafe(32)
+            session_id = secrets_module.token_urlsafe(32)
             self.challenges[session_id] = options.challenge
 
-            return JSONResponse({
-                "options": json.loads(options_to_json(options)),
-                "sessionId": session_id
-            })
+            return JSONResponse(
+                {"options": json.loads(options_to_json(options)), "sessionId": session_id}
+            )
 
         @self.app.post("/webauthn/authenticate/verify")
         async def authenticate_verify(request: Request):
@@ -419,7 +522,7 @@ class ApprovalServer:
 
                 return {
                     "success": True,
-                    "message": f"Operation approved! Claude-Vault write to '{op.service}' is now authorized."
+                    "message": f"Operation approved! Claude-Vault write to '{op.service}' is now authorized.",
                 }
             except Exception as e:
                 raise HTTPException(400, f"Authentication failed: {e}")
@@ -432,6 +535,138 @@ class ApprovalServer:
 
             op = self.pending_ops[op_id]
             return {"approved": op.approved}
+
+        @self.app.post("/reset-credentials")
+        async def reset_credentials():
+            """Delete all registered authenticators."""
+            try:
+                self.credentials_db = {}
+                self._save_credentials()
+                return {
+                    "success": True,
+                    "message": "All authenticators have been deleted. You can now register a new device.",
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Failed to reset credentials: {e}")
+
+    def _get_registered_devices_html(self) -> str:
+        """Generate HTML for registered devices section."""
+        if not self.credentials_db:
+            return """
+    <div class="card">
+        <h2>🔑 Registered Devices</h2>
+        <div class="empty-state">No devices registered yet</div>
+    </div>
+            """
+
+        devices_rows = ""
+        for user_id, cred in self.credentials_db.items():
+            device_name = cred.get("device_name", "Unnamed Device")
+            cred_id_short = cred["credential_id"][:16] + "..."
+
+            # Handle both timestamp and missing registered_at
+            registered_at = cred.get("registered_at")
+            if registered_at:
+                registered_str = datetime.fromtimestamp(registered_at).strftime("%Y-%m-%d %H:%M")
+            else:
+                # Fallback to created_at if it exists
+                created_at = cred.get("created_at")
+                if created_at:
+                    try:
+                        dt = datetime.fromisoformat(created_at)
+                        registered_str = dt.strftime("%Y-%m-%d %H:%M")
+                    except (ValueError, TypeError):
+                        registered_str = "Unknown"
+                else:
+                    registered_str = "Unknown"
+
+            devices_rows += f"""
+            <tr>
+                <td><strong>{device_name}</strong></td>
+                <td class="credential-id">{cred_id_short}</td>
+                <td><span class="badge badge-success">Active</span></td>
+                <td class="time-ago">{registered_str}</td>
+            </tr>
+            """
+
+        return f"""
+    <div class="card">
+        <h2>🔑 Registered Devices</h2>
+        <table class="list-table">
+            <thead>
+                <tr>
+                    <th>Device Name</th>
+                    <th>Credential ID</th>
+                    <th>Status</th>
+                    <th>Registered</th>
+                </tr>
+            </thead>
+            <tbody>
+                {devices_rows}
+            </tbody>
+        </table>
+    </div>
+        """
+
+    def _get_pending_operations_html(self) -> str:
+        """Generate HTML for pending operations section."""
+        # Reload to get latest state
+        self._load_pending_operations()
+
+        if not self.pending_ops:
+            return """
+    <div class="card">
+        <h2>📋 Pending Operations</h2>
+        <div class="empty-state">No pending operations</div>
+    </div>
+            """
+
+        ops_rows = ""
+        now = datetime.now().timestamp()
+        for op_id, op in sorted(
+            self.pending_ops.items(), key=lambda x: x[1].created_at, reverse=True
+        ):
+            age_seconds = int(now - op.created_at)
+            age_str = f"{age_seconds}s ago" if age_seconds < 60 else f"{age_seconds // 60}m ago"
+
+            status_badge = (
+                '<span class="badge badge-success">Approved</span>'
+                if op.approved
+                else '<span class="badge badge-warning">Pending</span>'
+            )
+            action_badge_class = "badge-info" if op.action == "CREATE" else "badge-secondary"
+
+            ops_rows += f"""
+            <tr>
+                <td><strong>{op.service}</strong></td>
+                <td><span class="badge {action_badge_class}">{op.action}</span></td>
+                <td>{len(op.secrets)} secret(s)</td>
+                <td>{status_badge}</td>
+                <td class="time-ago">{age_str}</td>
+                <td><a href="/approve/{op_id}" style="color: #667eea; text-decoration: none; font-weight: 600;">View →</a></td>
+            </tr>
+            """
+
+        return f"""
+    <div class="card">
+        <h2>📋 Pending Operations</h2>
+        <table class="list-table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Action</th>
+                    <th>Secrets</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {ops_rows}
+            </tbody>
+        </table>
+    </div>
+        """
 
     def _get_register_html(self) -> str:
         """Get HTML for WebAuthn registration page."""
@@ -556,6 +791,27 @@ class ApprovalServer:
             font-size: 2em;
             margin-bottom: 10px;
         }
+        .form-group {
+            margin: 20px 0;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -579,6 +835,11 @@ class ApprovalServer:
             <p>🍎 TouchID (macOS) • 🪟 Windows Hello • 🔑 YubiKey • 📱 Phone authenticators</p>
         </div>
 
+        <div class="form-group">
+            <label for="deviceName">Device Name</label>
+            <input type="text" id="deviceName" placeholder="e.g., My MacBook Pro, Work Laptop, YubiKey" value="">
+        </div>
+
         <button onclick="register()" id="registerBtn">
             Register Authenticator
         </button>
@@ -587,6 +848,30 @@ class ApprovalServer:
     </div>
 
     <script>
+        // Auto-suggest device name based on user agent
+        window.addEventListener('DOMContentLoaded', () => {
+            const ua = navigator.userAgent;
+            let suggestedName = '';
+
+            if (ua.includes('Mac')) {
+                suggestedName = 'MacBook';
+            } else if (ua.includes('Windows')) {
+                suggestedName = 'Windows PC';
+            } else if (ua.includes('Linux')) {
+                suggestedName = 'Linux Machine';
+            } else if (ua.includes('iPhone')) {
+                suggestedName = 'iPhone';
+            } else if (ua.includes('iPad')) {
+                suggestedName = 'iPad';
+            } else if (ua.includes('Android')) {
+                suggestedName = 'Android Device';
+            } else {
+                suggestedName = 'My Device';
+            }
+
+            document.getElementById('deviceName').value = suggestedName;
+        });
+
         function base64ToArrayBuffer(base64) {
             const binary = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
             const bytes = new Uint8Array(binary.length);
@@ -599,6 +884,13 @@ class ApprovalServer:
         async function register() {
             const status = document.getElementById('status');
             const btn = document.getElementById('registerBtn');
+            const deviceNameInput = document.getElementById('deviceName');
+            const deviceName = deviceNameInput.value.trim();
+
+            if (!deviceName) {
+                alert('Please enter a device name');
+                return;
+            }
 
             btn.disabled = true;
             status.className = 'loading show';
@@ -628,6 +920,7 @@ class ApprovalServer:
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         sessionId,
+                        deviceName,
                         credential: {
                             id: credential.id,
                             rawId: arrayBufferToBase64(credential.rawId),
@@ -680,13 +973,13 @@ class ApprovalServer:
         warnings_html = ""
         if op.warnings:
             warning_items = "".join(f"<li>{w}</li>" for w in op.warnings)
-            warnings_html = f'''
+            warnings_html = f"""
             <div class="warning-box">
                 <h3>⚠️ Security Warnings</h3>
                 <ul>{warning_items}</ul>
                 <p><strong>Review carefully before approving!</strong></p>
             </div>
-            '''
+            """
 
         return f"""
 <!DOCTYPE html>
@@ -1077,14 +1370,9 @@ class ApprovalServer:
 """
 
     def create_pending_operation(
-        self,
-        service: str,
-        action: str,
-        secrets: Dict[str, str],
-        warnings: list = None
+        self, service: str, action: str, secrets: Dict[str, str], warnings: list = None
     ) -> tuple[str, str]:
         """Create a pending operation and return (operation ID, approval URL)."""
-        import secrets as secrets_module
         op_id = secrets_module.token_urlsafe(16)
 
         self.pending_ops[op_id] = PendingOperation(
@@ -1093,7 +1381,7 @@ class ApprovalServer:
             action=action,
             secrets=secrets,
             warnings=warnings or [],
-            created_at=datetime.now().timestamp()
+            created_at=datetime.now().timestamp(),
         )
 
         # Save to disk for cross-process sharing
@@ -1150,9 +1438,9 @@ def get_approval_server() -> ApprovalServer:
     global _approval_server
     if _approval_server is None:
         # Read configuration from environment variables
-        domain = os.getenv('VAULT_APPROVE_DOMAIN', 'vault-approve.laboiteaframboises.duckdns.org')
-        origin = os.getenv('VAULT_APPROVE_ORIGIN', f'https://{domain}')
-        port = int(os.getenv('VAULT_APPROVE_PORT', '8091'))
+        domain = os.getenv("VAULT_APPROVE_DOMAIN", "vault-approve.laboiteaframboises.duckdns.org")
+        origin = os.getenv("VAULT_APPROVE_ORIGIN", f"https://{domain}")
+        port = int(os.getenv("VAULT_APPROVE_PORT", "8091"))
 
         _approval_server = ApprovalServer(port=port, domain=domain, origin=origin)
         _approval_server.start()
@@ -1161,11 +1449,10 @@ def get_approval_server() -> ApprovalServer:
 
 def main():
     """Standalone approval server (for debugging)."""
-    import sys
     server = ApprovalServer()
-    print(f"🔐 Claude-Vault Approval Server")
+    print("🔐 Claude-Vault Approval Server")
     print(f"Running on http://localhost:{server.port}")
-    print(f"Press Ctrl+C to stop")
+    print("Press Ctrl+C to stop")
 
     try:
         uvicorn.run(server.app, host="0.0.0.0", port=server.port)
