@@ -44,6 +44,8 @@ class PendingOperation:
     scan_file_path: Optional[str] = None  # For scan operations
     metadata: Optional[Dict] = None  # Additional metadata
     tokens_map: Optional[Dict[str, str]] = None  # Maps secret_key -> token (for display)
+    approved_by_credential: Optional[str] = None  # credential_id used for approval
+    approved_by_device: Optional[str] = None  # device name used for approval
 
 
 class ApprovalServer:
@@ -227,7 +229,7 @@ class ApprovalServer:
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            max-width: 700px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 40px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -329,19 +331,30 @@ class ApprovalServer:
         }}
         .list-table th {{
             background: #f8f9fa;
-            padding: 12px;
+            padding: 14px 16px;
             text-align: left;
             font-weight: 600;
             color: #495057;
             border-bottom: 2px solid #dee2e6;
         }}
         .list-table td {{
-            padding: 12px;
+            padding: 14px 16px;
             border-bottom: 1px solid #e9ecef;
             color: #495057;
         }}
         .list-table tr:last-child td {{
             border-bottom: none;
+        }}
+        .list-table th:first-child,
+        .list-table td:first-child {{
+            width: 25%;
+        }}
+        .clickable-row {{
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }}
+        .clickable-row:hover {{
+            background-color: #f0f4ff;
         }}
         .badge {{
             display: inline-block;
@@ -380,6 +393,107 @@ class ApprovalServer:
         .time-ago {{
             font-size: 0.9em;
             color: #6c757d;
+        }}
+        .modal {{
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }}
+        .modal-content {{
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideDown 0.3s;
+        }}
+        .modal-header {{
+            background: linear-gradient(135deg, rgb(102,126,234) 0%, rgb(118,75,162) 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .modal-header h2 {{
+            margin: 0;
+            font-size: 1.5em;
+        }}
+        .modal-close {{
+            color: white;
+            font-size: 35px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }}
+        .modal-close:hover {{
+            color: #f0f0f0;
+        }}
+        .modal-body {{
+            padding: 30px;
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; }}
+            to {{ opacity: 1; }}
+        }}
+        @keyframes slideDown {{
+            from {{ transform: translateY(-50px); opacity: 0; }}
+            to {{ transform: translateY(0); opacity: 1; }}
+        }}
+        .detail-section {{
+            margin-bottom: 25px;
+        }}
+        .detail-section h3 {{
+            color: #495057;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }}
+        .detail-grid {{
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }}
+        .detail-label {{
+            font-weight: 600;
+            color: #6c757d;
+        }}
+        .detail-value {{
+            color: #495057;
+        }}
+        .detail-value code {{
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.9em;
+        }}
+        @media (max-width: 1200px) {{
+            body {{
+                padding: 20px 10px;
+            }}
+            .card {{
+                padding: 30px 20px;
+            }}
+            .modal-content {{
+                width: 95%;
+                margin: 2% auto;
+            }}
+            .detail-grid {{
+                grid-template-columns: 1fr;
+            }}
         }}
     </style>
 </head>
@@ -449,7 +563,197 @@ class ApprovalServer:
                 alert('❌ Error: ' + err.message);
             }}
         }}
+
+        // Store operation details globally (populated from server)
+        let operationDetails = {{}};
+
+        function showOperationDetails(opId) {{
+            const op = operationDetails[opId];
+            if (!op) {{
+                alert('Operation details not found');
+                return;
+            }}
+
+            // Build modal content
+            const modalBody = document.getElementById('modalBody');
+            const modalTitle = document.getElementById('modalTitle');
+
+            modalTitle.textContent = `Operation: ${{op.service}}`;
+
+            // Build HTML for operation details
+            let html = `
+                <div class="detail-section">
+                    <h3>📋 Operation Information</h3>
+                    <div class="detail-grid">
+                        <div class="detail-label">Service:</div>
+                        <div class="detail-value"><strong>${{op.service}}</strong></div>
+
+                        <div class="detail-label">Action:</div>
+                        <div class="detail-value">
+                            <span class="badge badge-info">${{op.action}}</span>
+                        </div>
+
+                        <div class="detail-label">Operation ID:</div>
+                        <div class="detail-value"><code>${{op.op_id}}</code></div>
+
+                        <div class="detail-label">Status:</div>
+                        <div class="detail-value">
+                            <span class="badge badge-success">Completed</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>⏰ Timeline</h3>
+                    <div class="detail-grid">
+                        <div class="detail-label">Created:</div>
+                        <div class="detail-value">
+                            ${{formatTimestamp(op.created_at)}}
+                        </div>
+
+                        <div class="detail-label">Approved:</div>
+                        <div class="detail-value">
+                            ${{op.approved_at ? formatTimestamp(op.approved_at) : 'N/A'}}
+                        </div>
+
+                        <div class="detail-label">Duration:</div>
+                        <div class="detail-value">
+                            ${{calculateDuration(op.created_at, op.approved_at)}}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>🔐 Secrets (${{Object.keys(op.secrets).length}})</h3>
+                    <table class="list-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%">Key</th>
+                                <th style="width: 70%">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            // Add secrets rows
+            for (const [key, value] of Object.entries(op.secrets)) {{
+                html += `
+                    <tr>
+                        <td><strong>${{escapeHtml(key)}}</strong></td>
+                        <td><code>${{escapeHtml(value)}}</code></td>
+                    </tr>
+                `;
+            }}
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="detail-section">
+                    <h3>👤 Approval Details</h3>
+                    <div class="detail-grid">
+                        <div class="detail-label">Device Used:</div>
+                        <div class="detail-value">
+                            ${{op.approved_by_device || 'N/A'}}
+                        </div>
+
+                        <div class="detail-label">Credential ID:</div>
+                        <div class="detail-value">
+                            <code>
+                                ${{op.approved_by_credential
+                                    ? op.approved_by_credential.substring(0, 20) + '...'
+                                    : 'N/A'}}
+                            </code>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add scan information if present
+            if (op.scan_file_path) {{
+                html += `
+                <div class="detail-section">
+                    <h3>📄 Scan Information</h3>
+                    <div class="detail-grid">
+                        <div class="detail-label">Source File:</div>
+                        <div class="detail-value">
+                            <code>${{escapeHtml(op.scan_file_path)}}</code>
+                        </div>
+
+                        <div class="detail-label">Secrets Found:</div>
+                        <div class="detail-value">
+                            ${{op.metadata?.secret_count || Object.keys(op.secrets).length}}
+                        </div>
+
+                        <div class="detail-label">Config Values:</div>
+                        <div class="detail-value">
+                            ${{op.metadata?.config_count || 'N/A'}}
+                        </div>
+                    </div>
+                </div>
+                `;
+            }}
+
+            modalBody.innerHTML = html;
+
+            // Show modal
+            document.getElementById('operationModal').style.display = 'block';
+        }}
+
+        function closeModal() {{
+            document.getElementById('operationModal').style.display = 'none';
+        }}
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {{
+            const modal = document.getElementById('operationModal');
+            if (event.target == modal) {{
+                closeModal();
+            }}
+        }}
+
+        // Utility functions
+        function formatTimestamp(timestamp) {{
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleString('en-US', {{
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }});
+        }}
+
+        function calculateDuration(start, end) {{
+            if (!start || !end) return 'N/A';
+            const duration = end - start;
+            if (duration < 60) return `${{Math.round(duration)}}s`;
+            if (duration < 3600) return `${{Math.round(duration / 60)}}m`;
+            return `${{Math.round(duration / 3600)}}h`;
+        }}
+
+        function escapeHtml(text) {{
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }}
     </script>
+
+    <!-- Operation Details Modal -->
+    <div id="operationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Operation Details</h2>
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Details populated by JavaScript -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>
             """
@@ -610,6 +914,8 @@ class ApprovalServer:
                 op = self.pending_ops[op_id]
                 op.approved = True
                 op.approved_at = datetime.now().timestamp()
+                op.approved_by_credential = verification.credential_id.hex()
+                op.approved_by_device = stored_credential.get("device_name", "Unknown Device")
 
                 # Save to disk for cross-process sharing
                 self._save_pending_operations()
@@ -820,7 +1126,7 @@ class ApprovalServer:
             action_badge_class = "badge-info" if op.action == "CREATE" else "badge-secondary"
 
             ops_rows += """
-            <tr>
+            <tr class="clickable-row" data-op-id="{}" onclick="showOperationDetails('{}')">
                 <td><strong>{}</strong></td>
                 <td><span class="badge {}">{}</span></td>
                 <td>{} secret(s)</td>
@@ -829,8 +1135,36 @@ class ApprovalServer:
                 <td class="time-ago">{}</td>
             </tr>
             """.format(
-                op.service, action_badge_class, op.action, len(op.secrets), completed_time, age_str
+                op_id,
+                op_id,
+                op.service,
+                action_badge_class,
+                op.action,
+                len(op.secrets),
+                completed_time,
+                age_str,
             )
+
+        # Build JavaScript data for modal
+        import json
+
+        js_data = "    <script>\n        operationDetails = {\n"
+        for op_id, op in sorted_ops[:10]:
+            # Serialize operation data as JSON
+            op_data = {
+                "op_id": op_id,
+                "service": op.service,
+                "action": op.action,
+                "secrets": op.secrets,
+                "created_at": op.created_at,
+                "approved_at": op.approved_at,
+                "scan_file_path": op.scan_file_path,
+                "metadata": op.metadata or {},
+                "approved_by_credential": getattr(op, "approved_by_credential", None),
+                "approved_by_device": getattr(op, "approved_by_device", None),
+            }
+            js_data += f"            '{op_id}': {json.dumps(op_data)},\n"
+        js_data += "        };\n    </script>\n"
 
         return f"""
     <div class="card">
@@ -853,6 +1187,7 @@ class ApprovalServer:
             </tbody>
         </table>
     </div>
+    {js_data}
         """
 
     def _get_register_html(self) -> str:
@@ -869,7 +1204,7 @@ class ApprovalServer:
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                 "Helvetica Neue", Arial, sans-serif;
-            max-width: 700px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 40px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1261,7 +1596,7 @@ class ApprovalServer:
         body {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
                 Roboto, "Helvetica Neue", Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 40px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1399,12 +1734,14 @@ class ApprovalServer:
         .secret-key {{
             font-weight: 600;
             color: #495057;
-            width: 40%;
+            width: 30%;
         }}
         .secret-value {{
             color: #6c757d;
             font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
             font-size: 0.9em;
+            width: 70%;
+            word-break: break-all;
         }}
         .secret-value code {{
             background: #e9ecef;
