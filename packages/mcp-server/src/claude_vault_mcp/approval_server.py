@@ -1524,11 +1524,35 @@ class ApprovalServer:
         secret_count = metadata.get("secret_count", 0)
         config_count = metadata.get("config_count", 0)
 
+        # Calculate timeline information
+        from datetime import datetime
+
+        created_time = datetime.fromtimestamp(op.created_at).strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.now().timestamp()
+        age_seconds = int(now - op.created_at)
+        if age_seconds < 60:
+            age_str = f"{age_seconds}s ago"
+        elif age_seconds < 3600:
+            age_str = f"{age_seconds // 60}m ago"
+        else:
+            age_str = f"{age_seconds // 3600}h ago"
+
+        op_id_style = "background: #e9ecef; padding: 2px 6px; border-radius: 3px;"
         return f"""
 <div class="info-box">
+    <h3>ℹ️ Operation Details</h3>
+    <p><strong>Operation ID:</strong> <code style="{op_id_style}">{op.op_id}</code></p>
     <p><strong>Service:</strong> {op.service}</p>
-    <p><strong>File:</strong> {op.scan_file_path}</p>
-    <p><strong>Operation:</strong> {op.action}</p>
+    <p><strong>Action:</strong> <span class="badge badge-{op.action.lower()}">{op.action}</span></p>
+    <p><strong>File:</strong> <code>{op.scan_file_path}</code></p>
+    <p><strong>Status:</strong> <span class="badge badge-warning">Pending Approval</span></p>
+</div>
+
+<div class="info-box" style="margin-top: 20px;">
+    <h3>⏱️ Timeline</h3>
+    <p><strong>Created:</strong> {created_time}</p>
+    <p><strong>Age:</strong> {age_str}</p>
+    <p><strong>Expires:</strong> {5 - (age_seconds // 60)} minutes remaining</p>
 </div>
 
 <div class="warning-box">
@@ -1589,21 +1613,73 @@ class ApprovalServer:
             </div>
             """
 
+            # Calculate timeline information
+            from datetime import datetime
+
+            created_time = datetime.fromtimestamp(op.created_at).strftime("%Y-%m-%d %H:%M:%S")
+            now = datetime.now().timestamp()
+            age_seconds = int(now - op.created_at)
+            if age_seconds < 60:
+                age_str = f"{age_seconds}s ago"
+            elif age_seconds < 3600:
+                age_str = f"{age_seconds // 60}m ago"
+            else:
+                age_str = f"{age_seconds // 3600}h ago"
+
+            # Build metadata HTML if available
+            metadata_html = ""
+            if op.metadata:
+                metadata_items = "".join(
+                    f"<li><strong>{k}:</strong> {v}</li>" for k, v in op.metadata.items()
+                )
+                metadata_html = f"""
+<div class="info-box" style="margin-top: 20px;">
+    <h3>📋 Metadata</h3>
+    <ul style="margin-left: 20px;">
+        {metadata_items}
+    </ul>
+</div>
+"""
+
+            # Build scan info HTML if available
+            scan_html = ""
+            if op.scan_file_path:
+                scan_html = f"""
+<div class="info-box" style="margin-top: 20px;">
+    <h3>📄 Scan Information</h3>
+    <p><strong>Source File:</strong> <code>{op.scan_file_path}</code></p>
+</div>
+"""
+
+            op_id_style = "background: #e9ecef; padding: 2px 6px; border-radius: 3px;"
             action_specific_html = f"""
 <div class="info-box">
+    <h3>ℹ️ Operation Details</h3>
+    <p><strong>Operation ID:</strong> <code style="{op_id_style}">{op.op_id}</code></p>
     <p><strong>Service:</strong> {op.service}</p>
     <p><strong>Action:</strong> <span class="badge badge-{op.action.lower()}">{op.action}</span></p>
-    <p><strong>Vault Path:</strong> secret/proxmox-services/{op.service}</p>
+    <p><strong>Vault Path:</strong> <code>secret/proxmox-services/{op.service}</code></p>
+    <p><strong>Status:</strong> <span class="badge badge-warning">Pending Approval</span></p>
+</div>
+
+<div class="info-box" style="margin-top: 20px;">
+    <h3>⏱️ Timeline</h3>
+    <p><strong>Created:</strong> {created_time}</p>
+    <p><strong>Age:</strong> {age_str}</p>
+    <p><strong>Expires:</strong> {5 - (age_seconds // 60)} minutes remaining</p>
 </div>
 
 {warnings_html}
 
 <div class="secrets-box">
-    <h3>📝 Secrets to Write</h3>
+    <h3>📝 Secrets to Write ({len(op.secrets)} total)</h3>
     <table class="secrets-table">
         {secrets_rows}
     </table>
 </div>
+
+{metadata_html}
+{scan_html}
 """
 
         return f"""
@@ -1683,12 +1759,25 @@ class ApprovalServer:
             background: #fff3cd;
             color: #856404;
         }}
+        .badge-warning {{
+            background: #fff3cd;
+            color: #856404;
+        }}
+        .badge-scan_env, .badge-scan_compose {{
+            background: #d1ecf1;
+            color: #0c5460;
+        }}
         .info-box {{
             background: #e7f3ff;
             border-left: 4px solid #0066cc;
             padding: 20px;
             margin: 20px 0;
             border-radius: 5px;
+        }}
+        .info-box h3 {{
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
         }}
         .info-box p {{
             color: #495057;
@@ -1698,6 +1787,10 @@ class ApprovalServer:
         .info-box strong {{
             color: #333;
             font-weight: 600;
+        }}
+        .info-box ul {{
+            color: #495057;
+            line-height: 1.8;
         }}
         .warning-box {{
             background: #fff3cd;
