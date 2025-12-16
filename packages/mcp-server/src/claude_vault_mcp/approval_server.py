@@ -137,15 +137,7 @@ class ApprovalServer:
                 # Convert dict to PendingOperation objects
                 for op_id, op_data in data.items():
                     self.completed_ops[op_id] = PendingOperation(**op_data)
-                # Clean up old operations (older than 24 hours)
-                now = datetime.now().timestamp()
-                expired = [
-                    op_id for op_id, op in self.completed_ops.items() if now - op.created_at > 86400
-                ]
-                for op_id in expired:
-                    del self.completed_ops[op_id]
-                if expired:
-                    self._save_completed_operations()
+                # Keep all completed operations indefinitely (no cleanup)
             except Exception as e:
                 print(f"Warning: Could not load completed operations: {e}", file=sys.stderr)
 
@@ -1049,11 +1041,15 @@ class ApprovalServer:
             self.pending_ops.items(), key=lambda x: x[1].created_at, reverse=True
         ):
             age_seconds = int(now - op.created_at)
-            age_str = (
-                "{}s ago".format(age_seconds)
-                if age_seconds < 60
-                else "{}m ago".format(age_seconds // 60)
-            )
+            if age_seconds < 60:
+                age_str = "{}s ago".format(age_seconds)
+            elif age_seconds < 3600:
+                age_str = "{}m ago".format(age_seconds // 60)
+            else:
+                age_str = "{}h ago".format(age_seconds // 3600)
+
+            # Format timestamp
+            created_time = datetime.fromtimestamp(op.created_at).strftime("%Y-%m-%d %H:%M")
 
             status_badge = (
                 '<span class="badge badge-success">Approved</span>'
@@ -1063,24 +1059,56 @@ class ApprovalServer:
             action_badge_class = "badge-info" if op.action == "CREATE" else "badge-secondary"
 
             ops_rows += """
-            <tr>
+            <tr class="clickable-row" data-op-id="{}" onclick="showOperationDetails('{}')">
                 <td><strong>{}</strong></td>
                 <td><span class="badge {}">{}</span></td>
                 <td>{} secret(s)</td>
                 <td>{}</td>
                 <td class="time-ago">{}</td>
-                <td><a href="/approve/{}" style="color: #667eea; '
-                'text-decoration: none; font-weight: 600;">View →</a></td>
+                <td class="time-ago">{}</td>
+                <td><a href="/approve/{}" style="color: #667eea; text-decoration: none; '
+                'font-weight: 600;" onclick="event.stopPropagation();">View →</a></td>
             </tr>
             """.format(
+                op_id,
+                op_id,
                 op.service,
                 action_badge_class,
                 op.action,
                 len(op.secrets),
                 status_badge,
+                created_time,
                 age_str,
                 op_id,
             )
+
+        # Build JavaScript data for modal
+        import json
+
+        js_data = (
+            "    <script>\n"
+            "        if (typeof operationDetails === 'undefined') {{\n"
+            "            var operationDetails = {{}};\n"
+            "        }}\n"
+            "        // Add pending operations to modal data\n"
+        )
+        for op_id, op in sorted(
+            self.pending_ops.items(), key=lambda x: x[1].created_at, reverse=True
+        ):
+            op_data = {
+                "op_id": op_id,
+                "service": op.service,
+                "action": op.action,
+                "secrets": op.secrets,
+                "created_at": op.created_at,
+                "approved_at": op.approved_at,
+                "scan_file_path": op.scan_file_path,
+                "metadata": op.metadata or {},
+                "approved_by_credential": getattr(op, "approved_by_credential", None),
+                "approved_by_device": getattr(op, "approved_by_device", None),
+            }
+            js_data += f"        operationDetails['{op_id}'] = {json.dumps(op_data)};\n"
+        js_data += "    </script>\n"
 
         return f"""
     <div class="card">
@@ -1093,6 +1121,7 @@ class ApprovalServer:
                     <th>Secrets</th>
                     <th>Status</th>
                     <th>Created</th>
+                    <th>Age</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -1101,6 +1130,7 @@ class ApprovalServer:
             </tbody>
         </table>
     </div>
+    {js_data}
         """
 
     def _get_history_html(self) -> str:
@@ -1123,10 +1153,10 @@ class ApprovalServer:
             reverse=True,
         )
 
-        # Limit to last 10 operations
+        # Limit to last 100 operations
         ops_rows = ""
         now = datetime.now().timestamp()
-        for op_id, op in sorted_ops[:10]:
+        for op_id, op in sorted_ops[:100]:
             # Calculate time ago from approved_at or created_at
             ref_time = op.approved_at if op.approved_at else op.created_at
             age_seconds = int(now - ref_time)
@@ -1165,8 +1195,14 @@ class ApprovalServer:
         # Build JavaScript data for modal
         import json
 
-        js_data = "    <script>\n        operationDetails = {\n"
-        for op_id, op in sorted_ops[:10]:
+        js_data = (
+            "    <script>\n"
+            "        if (typeof operationDetails === 'undefined') {{\n"
+            "            var operationDetails = {{}};\n"
+            "        }}\n"
+            "        // Add completed operations to modal data\n"
+        )
+        for op_id, op in sorted_ops[:100]:
             # Serialize operation data as JSON
             op_data = {
                 "op_id": op_id,
@@ -1180,14 +1216,14 @@ class ApprovalServer:
                 "approved_by_credential": getattr(op, "approved_by_credential", None),
                 "approved_by_device": getattr(op, "approved_by_device", None),
             }
-            js_data += f"            '{op_id}': {json.dumps(op_data)},\n"
-        js_data += "        };\n    </script>\n"
+            js_data += f"        operationDetails['{op_id}'] = {json.dumps(op_data)};\n"
+        js_data += "    </script>\n"
 
         return f"""
     <div class="card">
         <h2>📜 Operation History</h2>
         <p style="color: #6c757d; margin-bottom: 15px;">
-        Last 10 completed operations (kept for 24 hours)</p>
+        Last 100 completed operations</p>
         <table class="list-table">
             <thead>
                 <tr>
