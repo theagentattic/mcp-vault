@@ -1,6 +1,6 @@
 [project]
 name = "claude-vault-mcp"
-version = "1.0.0"
+version = "1.4.0"
 description = "MCP server for HashiCorp Vault secret management via claude-vault"
 readme = "README.md"
 requires-python = ">=3.11"

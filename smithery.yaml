@@ -1,5 +1,5 @@
 name: claude-vault
-version: 1.0.0
+version: 1.4.0
 description: AI-assisted HashiCorp Vault management with zero secrets sent to AI providers
 author: weber8thomas
 license: MIT
