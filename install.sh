@@ -20,10 +20,10 @@ if [ ! -w "$PREFIX" ]; then
 fi
 
 # Determine installation method
-if [ -d "bin" ]; then
+if [ -d "packages/cli" ]; then
     # Local installation (from cloned repo)
     echo "Installing from local directory..."
-    cp -v bin/* "$PREFIX/"
+    cp -v packages/cli/* "$PREFIX/"
 else
     # Remote installation (piped from curl)
     echo "Downloading scripts from GitHub..."
@@ -44,7 +44,7 @@ else
 
     for script in "${SCRIPTS[@]}"; do
         echo "Downloading $script..."
-        curl -fsSL "https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/bin/$script" -o "$TEMP_DIR/$script"
+        curl -fsSL "https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/packages/cli/$script" -o "$TEMP_DIR/$script"
     done
 
     echo "Installing scripts..."
