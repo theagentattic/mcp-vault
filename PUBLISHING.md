@@ -1,6 +1,6 @@
 # Publishing Guide
 
-This guide covers how to publish the `claude-vault-mcp` package to PyPI and the Smithery catalog.
+This guide covers how to publish the `mcp-vault` package to PyPI and the Smithery catalog.
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ git push origin v1.0.0
 The `.github/workflows/publish-pypi.yml` workflow will:
 1. Build the package
 2. Publish to PyPI
-3. Make it available via `pip install claude-vault-mcp`
+3. Make it available via `pip install mcp-vault`
 
 ### Manual Publishing
 For testing or manual releases:
@@ -66,7 +66,7 @@ twine upload dist/*
 1. Visit https://smithery.ai
 2. Sign in with GitHub
 3. Click "Submit MCP Server"
-4. Provide repository URL: `https://github.com/weber8thomas/claude-vault`
+4. Provide repository URL: `https://github.com/weber8thomas/mcp-vault`
 5. Smithery reads `smithery.yaml` automatically
 
 **Why prioritize:**
@@ -82,7 +82,7 @@ See detailed guide in `AWESOME_MCP_SUBMISSION.md`
 1. Fork https://github.com/punkpeye/awesome-mcp-servers
 2. Add entry in Security section (🔒):
    ```markdown
-   - [weber8thomas/claude-vault](https://github.com/weber8thomas/claude-vault) 🐍 ☁️ 🏠 🍎 🪟 🐧 - AI-assisted HashiCorp Vault management with zero secrets sent to AI providers. Features tokenization, WebAuthn biometric approval for write operations, and Docker/docker-compose config migration.
+   - [weber8thomas/mcp-vault](https://github.com/weber8thomas/mcp-vault) 🐍 ☁️ 🏠 🍎 🪟 🐧 - AI-assisted HashiCorp Vault management with zero secrets sent to AI providers. Features tokenization, WebAuthn biometric approval for write operations, and Docker/docker-compose config migration.
    ```
 3. Submit pull request with detailed description
 
@@ -147,8 +147,8 @@ Examples:
 
 ### Release Validation
 - [ ] Verify GitHub Actions workflow completes
-- [ ] Check package on PyPI: https://pypi.org/project/claude-vault-mcp/
-- [ ] Test installation: `uvx --from claude-vault-mcp vault-approve-server --help`
+- [ ] Check package on PyPI: https://pypi.org/project/mcp-vault/
+- [ ] Test installation: `uvx --from mcp-vault vault-approve-server --help`
 - [ ] Test in clean environment with `.mcp.json` configuration
 
 ### Distribution (Priority Directories - First Release Only)
@@ -191,5 +191,5 @@ python -m build
 
 ### Package Not Found After Upload
 - Wait a few minutes for PyPI to index
-- Check https://pypi.org/project/claude-vault-mcp/ exists
-- Try: `pip install --upgrade claude-vault-mcp`
+- Check https://pypi.org/project/mcp-vault/ exists
+- Try: `pip install --upgrade mcp-vault`

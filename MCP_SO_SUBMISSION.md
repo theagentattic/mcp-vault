@@ -12,9 +12,9 @@ Based on [mcp.so](https://mcp.so) requirements and [MCP best practices](https://
 ## Required Information
 
 ### Basic Details
-- **Name:** claude-vault
-- **Repository:** https://github.com/weber8thomas/claude-vault
-- **PyPI Package:** https://pypi.org/project/claude-vault-mcp/
+- **Name:** mcp-vault
+- **Repository:** https://github.com/weber8thomas/mcp-vault
+- **PyPI Package:** https://pypi.org/project/mcp-vault/
 - **Category:** Security, DevOps, Infrastructure
 - **License:** MIT
 - **Language:** Python 3.12+
@@ -338,24 +338,24 @@ Result: ✓ Secrets registered in Vault
 - **Local processing:** MCP server runs on user's machine, not in cloud
 - **WebAuthn approval:** All write operations require biometric authentication
 - **No telemetry:** No analytics or usage data collected
-- **Audit trail:** All operations logged locally for compliance (~/.claude-vault/)
+- **Audit trail:** All operations logged locally for compliance (~/.mcp-vault/)
 
 ### Storage
 - **Vault tokens:** Stored only in shell environment, expire after 60 minutes
-- **Approval operations:** Stored locally in ~/.claude-vault/pending_operations/
+- **Approval operations:** Stored locally in ~/.mcp-vault/pending_operations/
 - **WebAuthn credentials:** Stored in browser's secure storage (WebAuthn standard)
 
 ### Full Privacy Policy
-See https://github.com/weber8thomas/claude-vault#security-architecture
+See https://github.com/weber8thomas/mcp-vault#security-architecture
 
 ## Installation
 
 ```bash
 # From PyPI (recommended)
-pip install claude-vault-mcp
+pip install mcp-vault
 
 # Or using uvx
-uvx claude-vault-mcp
+uvx mcp-vault
 ```
 
 ## Configuration
@@ -364,9 +364,9 @@ Add to `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "claude-vault": {
+    "mcp-vault": {
       "command": "uvx",
-      "args": ["claude-vault-mcp"],
+      "args": ["mcp-vault"],
       "env": {
         "VAULT_ADDR": "https://vault.example.com",
         "VAULT_TOKEN": "${VAULT_TOKEN}",
@@ -386,12 +386,12 @@ Add to `.mcp.json`:
 
 ## Documentation
 
-- **Full Documentation:** https://github.com/weber8thomas/claude-vault#readme
-- **Security Architecture:** https://github.com/weber8thomas/claude-vault#security-architecture
-- **WebAuthn Setup:** https://github.com/weber8thomas/claude-vault/blob/main/packages/mcp-server/WEBAUTHN_SETUP.md
-- **Publishing Guide:** https://github.com/weber8thomas/claude-vault/blob/main/PUBLISHING.md
+- **Full Documentation:** https://github.com/weber8thomas/mcp-vault#readme
+- **Security Architecture:** https://github.com/weber8thomas/mcp-vault#security-architecture
+- **WebAuthn Setup:** https://github.com/weber8thomas/mcp-vault/blob/main/packages/mcp-server/WEBAUTHN_SETUP.md
+- **Publishing Guide:** https://github.com/weber8thomas/mcp-vault/blob/main/PUBLISHING.md
 
 ## Support
 
-- **Issues:** https://github.com/weber8thomas/claude-vault/issues
-- **Discussions:** https://github.com/weber8thomas/claude-vault/discussions
+- **Issues:** https://github.com/weber8thomas/mcp-vault/issues
+- **Discussions:** https://github.com/weber8thomas/mcp-vault/discussions

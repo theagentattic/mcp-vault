@@ -1,9 +1,9 @@
-name: claude-vault
-version: 1.4.0
-description: AI-assisted HashiCorp Vault management with zero secrets sent to AI providers
+name: mcp-vault
+version: 1.4.1
+description: MCP server for HashiCorp Vault - works with any AI (Claude, Gemini, Qwen, OpenAI). Zero secrets sent to AI via tokenization.
 author: weber8thomas
 license: MIT
-repository: https://github.com/weber8thomas/claude-vault
+repository: https://github.com/weber8thomas/mcp-vault
 
 tags:
   - vault
@@ -15,7 +15,7 @@ tags:
 
 install:
   uvx:
-    package: claude-vault-mcp
+    package: mcp-vault
 
 config:
   env:

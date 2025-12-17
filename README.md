@@ -1,17 +1,19 @@
-# Claude-Vault
+# MCP-Vault
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![Vibe Coded](https://img.shields.io/badge/vibe--coded-with%20Claude-blueviolet)](https://claude.ai)
+[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
 
 **AI-assisted HashiCorp Vault management with zero secrets sent to AI providers**
 
-🔐 **Your secrets never leave your infrastructure** - Claude Code helps you manage Vault through a local MCP server that keeps all sensitive data on your machine. The AI sees structure and workflow, never actual secrets.
+🔐 **Your secrets never leave your infrastructure** - Any MCP-compatible AI (Claude, Gemini, Qwen, OpenAI) can help you manage Vault through a local MCP server that keeps all sensitive data on your machine. The AI sees structure and workflow, never actual secrets.
 
-Claude-Vault provides two complementary tools:
-- **🤖 MCP Server** - Model Context Protocol integration for Claude Code AI assistance (recommended)
+🤖 **Works with ANY MCP client:** Claude Code, Gemini CLI, OpenAI Agents, Qwen-Agent, BoltAI, Chatbox, and [469+ MCP clients](https://modelcontextprotocol.io/clients)
+
+MCP-Vault provides two complementary tools:
+- **🤖 MCP Server** - Model Context Protocol integration for AI assistance (works with any MCP client)
 - **💻 CLI** - Bash scripts for session-based Vault authentication and secret management
 
 ## Why This Exists
@@ -138,14 +140,14 @@ The MCP server injects real values locally - AI never sees them, just orchestrat
 Version-control your service structure without exposing secrets:
 - Commit `.env.example` files with `<REDACTED>` placeholders to git
 - Keep actual secrets in Vault
-- Claude Code helps generate example files from your existing setup
+- AI helps generate example files from your existing setup
 
 ## 📦 Installation
 
 ### Prerequisites
 - **HashiCorp Vault** server with OIDC authentication configured
 - **Python 3.12+** (for MCP server)
-- **Claude Code** (for AI-assisted workflows)
+- **MCP-compatible AI client** (Claude Code, Gemini CLI, OpenAI Agents, etc.)
 - Modern browser with WebAuthn support (Chrome, Firefox, Safari, Edge)
 
 ### Installation Options
@@ -153,19 +155,19 @@ Version-control your service structure without exposing secrets:
 #### Option A: MCP Server from PyPI (Recommended - No Repo Clone Needed!)
 ```bash
 # Install directly from PyPI
-pip install claude-vault-mcp
+pip install mcp-vault
 
 # Or using uvx (recommended - auto-managed environment)
-uvx --from claude-vault-mcp vault-approve-server --help
+uvx --from mcp-vault vault-approve-server --help
 ```
 
-**Add to Claude Code** - Simply reference the package name in your `.mcp.json`:
+**Add to your MCP client** - Configure in `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "claude-vault": {
+    "mcp-vault": {
       "command": "uvx",
-      "args": ["claude-vault-mcp"],
+      "args": ["mcp-vault"],
       "env": {
         "VAULT_ADDR": "https://vault.example.com",
         "VAULT_TOKEN": "${VAULT_TOKEN}",
@@ -176,6 +178,12 @@ uvx --from claude-vault-mcp vault-approve-server --help
 }
 ```
 
+**Compatible with:**
+- Claude Code / Claude Desktop
+- Gemini CLI (`gemini-cli --mcp-server mcp-vault`)
+- OpenAI Agents SDK
+- BoltAI, Chatbox, and [all MCP clients](https://modelcontextprotocol.io/clients)
+
 **Find this server on MCP directories:**
 - [Smithery.ai](https://smithery.ai) - Official Anthropic-maintained catalog
 - [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers) - Curated community list (high visibility)
@@ -184,10 +192,10 @@ uvx --from claude-vault-mcp vault-approve-server --help
 #### Option B: CLI Only (For Direct Vault Management)
 ```bash
 # Quick install from release
-curl -fsSL https://github.com/weber8thomas/claude-vault/releases/latest/download/install.sh | sudo bash
+curl -fsSL https://github.com/weber8thomas/mcp-vault/releases/latest/download/install.sh | sudo bash
 
 # Or install to ~/.local/bin (no sudo)
-curl -fsSL https://github.com/weber8thomas/claude-vault/releases/latest/download/install.sh | PREFIX="$HOME/.local/bin" bash
+curl -fsSL https://github.com/weber8thomas/mcp-vault/releases/latest/download/install.sh | PREFIX="$HOME/.local/bin" bash
 
 # Verify installation
 claude-vault --help
@@ -196,8 +204,8 @@ claude-vault --help
 #### Option C: Development Installation (From Source)
 ```bash
 # Clone repository
-git clone https://github.com/weber8thomas/claude-vault.git
-cd claude-vault
+git clone https://github.com/weber8thomas/mcp-vault.git
+cd mcp-vault
 
 # Install MCP server in editable mode
 cd packages/mcp-server
@@ -215,9 +223,9 @@ claude-vault --help
 ## Repository Structure
 
 ```
-claude-vault/
+mcp-vault/
 ├── packages/
-│   ├── mcp-server/       # Python MCP server for Claude Code integration (recommended)
+│   ├── mcp-server/       # Python MCP server for any MCP client (recommended)
 │   └── cli/              # Bash CLI scripts for Vault operations
 └── docs/                 # Documentation
 ```
@@ -239,7 +247,7 @@ This starts a web server on **http://localhost:8091** where you'll:
 - Review and approve AI-requested operations
 - View operation history and pending approvals
 
-**Keep this running in a separate terminal while using Claude Code.**
+**Keep this running in a separate terminal while using your MCP client.**
 
 #### Step 2: Authenticate to Vault
 In another terminal, authenticate your session:
@@ -258,14 +266,14 @@ This will:
 claude-vault status
 ```
 
-#### Step 3: Configure Claude Code
-Add to your project's `.mcp.json`:
+#### Step 3: Configure Your MCP Client
+Add to your `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "claude-vault": {
+    "mcp-vault": {
       "command": "uvx",
-      "args": ["claude-vault-mcp"],
+      "args": ["mcp-vault"],
       "env": {
         "VAULT_ADDR": "https://vault.example.com",
         "VAULT_TOKEN": "${VAULT_TOKEN}",
@@ -278,21 +286,26 @@ Add to your project's `.mcp.json`:
 
 **Important:** The MCP server inherits `VAULT_TOKEN` from your shell environment.
 
-> **Note:** If you installed from source (Option C), use the full path: `"args": ["--from", "/path/to/claude-vault/packages/mcp-server", "claude-vault-mcp"]`
+> **Note:** If you installed from source (Option C), use the full path: `"args": ["--from", "/path/to/mcp-vault/packages/mcp-server", "mcp-vault"]`
+
+**For other MCP clients:**
+- **Gemini CLI:** `gemini-cli --mcp-server mcp-vault`
+- **OpenAI Agents:** Configure in agents config file
+- **BoltAI/Chatbox:** Add server in app settings
 
 #### Step 4: Register WebAuthn Device
 1. Open http://localhost:8091 in your browser
 2. Click **"Register Authenticator"**
 3. Follow prompts to register your biometric device
-4. You're ready to use Claude Code with secure approvals!
+4. You're ready to use your AI assistant with secure approvals!
 
-#### Step 5: Use with Claude Code
-Now ask Claude Code to help manage your secrets:
+#### Step 5: Use with Your AI Assistant
+Now ask your AI to help manage your secrets:
 ```
 "Scan my docker-compose.yml for secrets and help me migrate them to Vault"
 ```
 
-When Claude Code needs to write secrets, it will:
+When the AI needs to write secrets, it will:
 1. Show you a tokenized preview (secrets replaced with `@token-xxx`)
 2. Provide an approval URL: http://localhost:8091/approve/{operation-id}
 3. Wait for your WebAuthn approval
