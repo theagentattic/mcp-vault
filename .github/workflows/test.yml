@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          cd packages/mcp-server
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        run: |
+          cd packages/mcp-server
+          pytest --cov=claude_vault_mcp --cov-report=term --cov-report=xml -v
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./packages/mcp-server/coverage.xml
+          flags: unittests
+          name: codecov-mcp-vault
+          fail_ci_if_error: false
