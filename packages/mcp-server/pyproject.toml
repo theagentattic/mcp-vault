@@ -1,6 +1,6 @@
 [project]
 name = "mcp-vault"
-version = "1.4.1"
+version = "1.4.2"
 description = "MCP server for HashiCorp Vault secret management - works with any MCP client (Claude, Gemini, Qwen, OpenAI, etc.)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,6 +27,15 @@ dependencies = [
     "uvicorn>=0.24.0",
     "webauthn>=2.0.0",
     "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "bandit>=1.7.5",
+    "safety>=2.3.0",
 ]
 
 [project.urls]

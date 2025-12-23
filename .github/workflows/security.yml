@@ -31,8 +31,8 @@ jobs:
       - name: Run Bandit security scan
         run: |
           cd packages/mcp-server
-          bandit -r src/ -f json -o bandit-report.json || true
-          bandit -r src/ -f screen
+          bandit -r src/ -c .bandit -f json -o bandit-report.json || true
+          bandit -r src/ -c .bandit -f screen
 
       - name: Check dependencies for vulnerabilities
         run: |
