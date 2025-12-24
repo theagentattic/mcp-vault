@@ -2,7 +2,7 @@
 
 ## Why WebAuthn Approval?
 
-**The Problem:** Claude Code (AI) has access to the `vault_set` tool and could write secrets to your production Vault. If an attacker tricks Claude through prompt injection, they could write malicious secrets without your knowledge.
+**The Problem:** AI assistants have access to the `vault_set` tool and could write secrets to your production Vault. If an attacker tricks the AI through prompt injection, they could write malicious secrets without your knowledge.
 
 **The Solution:** WebAuthn approval adds a human-in-the-loop checkpoint that AI cannot bypass:
 
@@ -10,26 +10,26 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │ Without Approval (UNSAFE)                                       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Attacker → Claude → vault_set() → Vault ✅ (secrets written)   │
+│  Attacker → AI Agent → vault_set() → Vault ✅ (secrets written) │
 │  ⚠️ AI can be tricked via prompt injection!                     │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
 │ With WebAuthn Approval (SECURE)                                 │
 ├─────────────────────────────────────────────────────────────────┤
-│  Attacker → Claude → vault_set() → Pending Operation            │
-│                    ↓                                             │
+│  Attacker → AI Agent → vault_set() → Pending Operation          │
+│                      ↓                                           │
 │  You review in browser → Touch TouchID → Operation Approved     │
-│                    ↓                                             │
-│  Claude → vault_set(approval_token) → Vault ✅                  │
+│                      ↓                                           │
+│  AI Agent → vault_set(approval_token) → Vault ✅                │
 │  ✅ Human verification required - AI cannot bypass!             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 **How It Works (Simple):**
-1. Claude calls `vault_set` → Creates a **pending operation** (not written yet)
+1. AI calls `vault_set` → Creates a **pending operation** (not written yet)
 2. You open approval URL in browser → Review secrets → Authenticate with TouchID/Windows Hello
-3. Claude calls `vault_set` again with **approval token** → Secrets written to Vault
+3. AI calls `vault_set` again with **approval token** → Secrets written to Vault
 
 **Key Insight:** The approval token proves a human reviewed and approved the operation using a physical authenticator that AI cannot access.
 

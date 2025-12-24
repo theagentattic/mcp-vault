@@ -78,6 +78,35 @@ Never sees: super_secret              Approve with TouchID
 
 **💻 Production-Ready** - OIDC+MFA authentication, comprehensive audit trails, operation history tracking (100 ops, permanent retention)
 
+### WebAuthn Approval Workflow
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/images/home-page.png" alt="Home Page" />
+      <p align="center"><strong>1. Home Dashboard</strong></p>
+      <p><em>Monitor server status, view pending approvals, and manage registered WebAuthn devices.</em></p>
+    </td>
+    <td width="50%">
+      <img src="docs/images/approval-page.png" alt="Approval Page" />
+      <p align="center"><strong>2. Review Operation</strong></p>
+      <p><em>Examine the service name, operation type, and preview secret values before approving.</em></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/images/approval-page-touchid.png" alt="TouchID Prompt" />
+      <p align="center"><strong>3. Biometric Authentication</strong></p>
+      <p><em>Confirm with TouchID, Windows Hello, or hardware security key for cryptographic verification.</em></p>
+    </td>
+    <td width="50%">
+      <img src="docs/images/approval-page-success.png" alt="Success Message" />
+      <p align="center"><strong>4. Approval Complete</strong></p>
+      <p><em>Success confirmation with audit trail. The operation is now processed and logged.</em></p>
+    </td>
+  </tr>
+</table>
+
 ## 🎯 Use Cases
 
 ### Primary: Migrate Docker Services to Vault
@@ -236,18 +265,13 @@ mcp-vault/
 
 *Assumes you've installed the MCP server (see Installation section above)*
 
-#### Step 1: Start the Approval Server
-**The approval server must be running before using the MCP server:**
-```bash
-vault-approve-server
-```
-
-This starts a web server on **http://localhost:8091** where you'll:
+#### Step 1: Approval Server
+The approval server **starts automatically** when the MCP server is first used. It runs on **http://localhost:8091** where you'll:
 - Register your WebAuthn device (TouchID/Windows Hello/YubiKey)
 - Review and approve AI-requested operations
 - View operation history and pending approvals
 
-**Keep this running in a separate terminal while using your MCP client.**
+> **Note:** The approval server is auto-started by the MCP server. You can also start it manually with `vault-approve-server` if needed for testing.
 
 #### Step 2: Authenticate to Vault
 In another terminal, authenticate your session:
@@ -257,7 +281,7 @@ source vault-session login
 
 This will:
 1. Open your Vault OIDC login page in browser
-2. Prompt for MFA authentication (e.g., Authentik)
+2. Prompt for authentication (e.g., Authentik, Okta, etc.)
 3. Set `VAULT_TOKEN` and `VAULT_TOKEN_EXPIRY` in your environment
 4. Session lasts 60 minutes (configurable)
 
@@ -267,7 +291,7 @@ vault-session status
 ```
 
 #### Step 3: Configure Your MCP Client
-Add to your `.mcp.json`:
+Add to your MCP client configuration (e.g., `.mcp.json` for Claude Code):
 ```json
 {
   "mcpServers": {
@@ -284,33 +308,12 @@ Add to your `.mcp.json`:
 }
 ```
 
-**Important:** The MCP server inherits `VAULT_TOKEN` from your shell environment.
+> **Important:** The MCP server inherits `VAULT_TOKEN` from your shell environment.
 
-> **Note:** If you installed from source (Option C), use the full path: `"args": ["--from", "/path/to/mcp-vault/packages/mcp-server", "mcp-vault"]`
-
-**Production Deployment (Nginx/HTTPS):**
-If you're using nginx reverse proxy with HTTPS, configure the approval server domain:
-```json
-{
-  "mcpServers": {
-    "mcp-vault": {
-      "env": {
-        "VAULT_ADDR": "https://vault.example.com",
-        "VAULT_TOKEN": "${VAULT_TOKEN}",
-        "VAULT_SECURITY_MODE": "tokenized",
-        "VAULT_APPROVE_DOMAIN": "vault-approve.yourdomain.com",
-        "VAULT_APPROVE_ORIGIN": "https://vault-approve.yourdomain.com"
-      }
-    }
-  }
-}
-```
-See [WEBAUTHN_SETUP.md](packages/mcp-server/WEBAUTHN_SETUP.md#production-deployment-with-nginxhttps) for full nginx configuration.
-
-**For other MCP clients:**
-- **Gemini CLI:** `gemini-cli --mcp-server mcp-vault`
-- **OpenAI Agents:** Configure in agents config file
-- **BoltAI/Chatbox:** Add server in app settings
+**See detailed configuration guides:**
+- [MCP Client Configuration](docs/MCP.md) - All MCP clients (Claude Desktop, Gemini CLI, etc.)
+- [Production Deployment](packages/mcp-server/WEBAUTHN_SETUP.md#production-deployment-with-nginxhttps) - Nginx/HTTPS setup
+- [Environment Variables](docs/SETUP.md#environment-variables) - All configuration options
 
 #### Step 4: Register WebAuthn Device
 1. Open http://localhost:8091 in your browser
@@ -398,108 +401,37 @@ vault-session logout
 | `set` | Create/update secrets | `vault-session set myapp KEY=value` |
 | `inject` | Write secrets to .env | `vault-session inject myapp` |
 
-## WebAuthn Approval Workflow
+## 🔐 Security
 
-<table>
-  <tr>
-    <td width="50%">
-      <img src="docs/images/home-page.png" alt="Home Page" />
-      <p align="center"><strong>1. Home Dashboard</strong></p>
-      <p><em>Monitor server status, view pending approvals, and manage registered WebAuthn devices.</em></p>
-    </td>
-    <td width="50%">
-      <img src="docs/images/approval-page.png" alt="Approval Page" />
-      <p align="center"><strong>2. Review Operation</strong></p>
-      <p><em>Examine the service name, operation type, and preview secret values before approving.</em></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="docs/images/approval-page-touchid.png" alt="TouchID Prompt" />
-      <p align="center"><strong>3. Biometric Authentication</strong></p>
-      <p><em>Confirm with TouchID, Windows Hello, or hardware security key for cryptographic verification.</em></p>
-    </td>
-    <td width="50%">
-      <img src="docs/images/approval-page-success.png" alt="Success Message" />
-      <p align="center"><strong>4. Approval Complete</strong></p>
-      <p><em>Success confirmation with audit trail. The operation is now processed and logged.</em></p>
-    </td>
-  </tr>
-</table>
+MCP-Vault uses **defense-in-depth** security:
 
-## 🔐 Security Architecture
+| Layer | Protection | How It Works |
+|-------|-----------|--------------|
+| **Tokenization** | Secrets never sent to AI APIs | Real values replaced with `@token-xxx` placeholders |
+| **WebAuthn Approval** | Human-in-the-loop for writes | TouchID/Windows Hello required to approve operations |
+| **Vault Integration** | Enterprise secret storage | Industry-standard encryption at rest and in transit |
+| **Session Management** | Time-limited access | OIDC tokens expire after 60 minutes |
 
-### How Tokenization Works
-**Your secrets are NEVER sent to Claude's API:**
-
-1. **Scanning phase** (when AI needs to see secrets):
-   ```
-   Original: DATABASE_PASSWORD="super_secret_123"
-   Sent to AI: DATABASE_PASSWORD="@token-a8f3d9e1b2c4"
-   ```
-   - MCP server tokenizes values before sending to AI
-   - Tokens are temporary and session-specific (2 hour expiry)
-   - AI sees structure and keys, never actual secrets
-
-2. **Writing phase** (when AI wants to save secrets):
-   ```
-   AI sends: vault_set(service="myapp", secrets={"KEY": "value"})
-   Your action: Review on http://localhost:8091 and approve with TouchID
-   Result: Only written to Vault after your biometric confirmation
-   ```
-
-### Security Model
-
-| Operation | AI Sees | Human Approval | Notes |
-|-----------|---------|----------------|-------|
-| **List services** | Service names only | ❌ Not required | Safe metadata |
-| **Read secrets** | Tokens like `@token-xxx` | ❌ Not required | Values stay in MCP server |
-| **Write secrets** | Structure and keys | ✅ **WebAuthn required** | You review real values in browser |
-| **Scan configs** | Tokens for detected secrets | ✅ **WebAuthn required** | Tokenization prevents leakage |
-| **Inject to .env** | File path only | ❌ Not required | Real values injected locally |
-
-### Trust Boundaries
+### Quick Security Model
 
 ```
 ┌──────────────────┐
-│   Claude API     │  ← Sees: Tokens, structure, metadata
-│  (Cloud/Remote)  │     Never sees: Actual secret values
+│  AI Provider     │  ← Sees: Tokens only (e.g., @token-a8f3d9e1)
+│ (Claude/Gemini)  │     Never sees: Actual secret values
 └────────┬─────────┘
          │ MCP Protocol
-         │ (only tokens sent)
-         │
 ┌────────▼─────────┐
-│   MCP Server     │  ← Has: Full access to secrets
-│ (Your Machine)   │     Enforces: WebAuthn approval for writes
+│   MCP Server     │  ← Full access to secrets
+│ (Your Machine)   │     WebAuthn approval enforced for writes
 └────────┬─────────┘
          │ Vault API
-         │ (with your token)
-         │
 ┌────────▼─────────┐
-│  HashiCorp Vault │  ← Stores: All secrets encrypted
-│ (Your Infra)     │     Access: Controlled by your OIDC/MFA
+│  HashiCorp Vault │  ← Encrypted secret storage
+│ (Your Infra)     │     OIDC/MFA controlled access
 └──────────────────┘
 ```
 
-### For Ultra-Sensitive Secrets
-
-If you have secrets that should never be accessible to AI tooling at all:
-
-1. **Use CLI directly** - Bypass MCP server entirely:
-   ```bash
-   source vault-session login
-   vault-session set prod-db MASTER_KEY="..."
-   ```
-
-2. **Hybrid approach** - Let AI structure, you provide values:
-   ```
-   AI: "I'll set up the Vault structure for your database service"
-   You: Manually provide sensitive values via CLI
-   ```
-
-3. **Separate Vault paths** - Keep ultra-sensitive secrets in a different path that the MCP server can't access
-
-See [Security FAQ](packages/mcp-server/WEBAUTHN_SETUP.md#security-faq) for detailed threat model analysis.
+**Read the full security architecture:** [docs/SECURITY.md](docs/SECURITY.md)
 
 ## Documentation
 
